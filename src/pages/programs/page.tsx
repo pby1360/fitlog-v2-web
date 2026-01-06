@@ -1,15 +1,22 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
 import Header from '../../components/feature/Header';
 
+import { getWorkoutParts, getWorkouts } from '../../services/api';
+
+interface WorkoutPart {
+  id: number;
+  name: string;
+}
+
 interface Exercise {
-  id: string;
+  id: number;
   name: string;
   bodyPart: string;
+  bodyPartId: number;
 }
 
 interface ExerciseSetDetail {
@@ -22,7 +29,7 @@ interface ExerciseSetDetail {
 
 interface ExerciseSet {
   id: string;
-  exerciseId: string;
+  exerciseId: number;
   sets: ExerciseSetDetail[];
 }
 
@@ -34,44 +41,6 @@ interface Program {
   createdAt: string;
 }
 
-const defaultBodyParts = [
-  '가슴', '등', '어깨', '팔', '복근', '하체', '유산소'
-];
-
-const defaultExercises: Exercise[] = [
-  // 가슴
-  { id: '1', name: '벤치프레스', bodyPart: '가슴' },
-  { id: '2', name: '인클라인 벤치프레스', bodyPart: '가슴' },
-  { id: '3', name: '딥스', bodyPart: '가슴' },
-  { id: '4', name: '푸시업', bodyPart: '가슴' },
-  // 등
-  { id: '5', name: '데드리프트', bodyPart: '등' },
-  { id: '6', name: '풀업', bodyPart: '등' },
-  { id: '7', name: '바벨로우', bodyPart: '등' },
-  { id: '8', name: '랫풀다운', bodyPart: '등' },
-  // 어깨
-  { id: '9', name: '숄더프레스', bodyPart: '어깨' },
-  { id: '10', name: '사이드레터럴레이즈', bodyPart: '어깨' },
-  { id: '11', name: '리어델트플라이', bodyPart: '어깨' },
-  // 팔
-  { id: '12', name: '바이셉컬', bodyPart: '팔' },
-  { id: '13', name: '트라이셉딥스', bodyPart: '팔' },
-  { id: '14', name: '해머컬', bodyPart: '팔' },
-  // 복근
-  { id: '15', name: '크런치', bodyPart: '복근' },
-  { id: '16', name: '플랭크', bodyPart: '복근' },
-  { id: '17', name: '러시안트위스트', bodyPart: '복근' },
-  // 하체
-  { id: '18', name: '스쿼트', bodyPart: '하체' },
-  { id: '19', name: '런지', bodyPart: '하체' },
-  { id: '20', name: '레그프레스', bodyPart: '하체' },
-  // 유산소
-  { id: '21', name: '러닝머신', bodyPart: '유산소' },
-  { id: '22', name: '사이클', bodyPart: '유산소' },
-  { id: '23', name: '로잉머신', bodyPart: '유산소' }
-];
-
-// 샘플 프로그램 데이터
 const samplePrograms: Program[] = [
   {
     id: '1',
@@ -80,7 +49,7 @@ const samplePrograms: Program[] = [
     exercises: [
       {
         id: 'ex1',
-        exerciseId: '1',
+        exerciseId: 1,
         sets: [
           { id: 'set1', reps: 12, weight: 60, restTime: 90 },
           { id: 'set2', reps: 10, weight: 65, restTime: 90 },
@@ -89,7 +58,7 @@ const samplePrograms: Program[] = [
       },
       {
         id: 'ex2',
-        exerciseId: '6',
+        exerciseId: 6,
         sets: [
           { id: 'set4', reps: 8, restTime: 120 },
           { id: 'set5', reps: 6, restTime: 120 },
@@ -106,7 +75,7 @@ const samplePrograms: Program[] = [
     exercises: [
       {
         id: 'ex3',
-        exerciseId: '18',
+        exerciseId: 18,
         sets: [
           { id: 'set7', reps: 15, weight: 80, restTime: 120 },
           { id: 'set8', reps: 12, weight: 90, restTime: 120 },
@@ -118,15 +87,16 @@ const samplePrograms: Program[] = [
   }
 ];
 
+
 export default function ProgramsPage() {
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [programs, setPrograms] = useState<Program[]>(samplePrograms);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedBodyPart, setSelectedBodyPart] = useState('');
-  const [exercises, setExercises] = useState<Exercise[]>(defaultExercises);
-  const [bodyParts, setBodyParts] = useState<string[]>(defaultBodyParts);
+  const [selectedBodyParts, setSelectedBodyParts] = useState<string[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [bodyParts, setBodyParts] = useState<WorkoutPart[]>([]);
   const [programExercises, setProgramExercises] = useState<ExerciseSet[]>([]);
   const [programName, setProgramName] = useState('');
   const [programDescription, setProgramDescription] = useState('');
@@ -140,15 +110,11 @@ export default function ProgramsPage() {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [newBodyPart, setNewBodyPart] = useState('');
   const [newExerciseName, setNewExerciseName] = useState('');
-  const [newExerciseBodyPart, setNewExerciseBodyPart] = useState('');
-
-  const filteredExercises = selectedBodyPart 
-    ? exercises.filter(ex => ex.bodyPart === selectedBodyPart)
-    : exercises;
+  const [newExerciseBodyPart, setNewExerciseBodyPart] = useState<number | ''>('');
 
   const resetForm = () => {
     setCurrentStep(1);
-    setSelectedBodyPart('');
+    setSelectedBodyParts([]);
     setProgramExercises([]);
     setProgramName('');
     setProgramDescription('');
@@ -176,27 +142,41 @@ export default function ProgramsPage() {
   };
 
   const addBodyPart = () => {
-    if (newBodyPart.trim() && !bodyParts.includes(newBodyPart.trim())) {
-      setBodyParts([...bodyParts, newBodyPart.trim()]);
+    if (newBodyPart.trim() && !bodyParts.some(bp => bp.name === newBodyPart.trim())) {
+      const newBodyPartObj: WorkoutPart = {
+        id: Date.now(), // 임시 ID, 실제로는 백엔드에서 생성된 ID를 사용해야 함
+        name: newBodyPart.trim()
+      };
+      setBodyParts([...bodyParts, newBodyPartObj]);
       setNewBodyPart('');
       setShowAddBodyPartModal(false);
     }
   };
 
-  const deleteBodyPart = (bodyPart: string) => {
-    setBodyParts(bodyParts.filter(bp => bp !== bodyPart));
-    setExercises(exercises.filter(ex => ex.bodyPart !== bodyPart));
-    if (selectedBodyPart === bodyPart) {
-      setSelectedBodyPart('');
+  const deleteBodyPart = (bodyPartName: string) => {
+    setBodyParts(bodyParts.filter(bp => bp.name !== bodyPartName));
+    setExercises(exercises.filter(ex => ex.bodyPart !== bodyPartName));
+    setSelectedBodyParts(selectedBodyParts.filter(bp => bp !== bodyPartName));
+  };
+
+  const toggleBodyPart = (bodyPartName: string) => {
+    if (selectedBodyParts.includes(bodyPartName)) {
+      setSelectedBodyParts(selectedBodyParts.filter(bp => bp !== bodyPartName));
+    } else {
+      setSelectedBodyParts([...selectedBodyParts, bodyPartName]);
     }
   };
 
   const addExercise = () => {
     if (newExerciseName.trim() && newExerciseBodyPart) {
+      const bodyPartObj = bodyParts.find(bp => bp.id === newExerciseBodyPart);
+      if (!bodyPartObj) return;
+
       const newExercise: Exercise = {
-        id: Date.now().toString(),
+        id: Date.now(), // 임시 ID, 실제로는 백엔드에서 생성된 ID를 사용해야 함
         name: newExerciseName.trim(),
-        bodyPart: newExerciseBodyPart
+        bodyPart: bodyPartObj.name,
+        bodyPartId: bodyPartObj.id
       };
       setExercises([...exercises, newExercise]);
       setNewExerciseName('');
@@ -205,16 +185,19 @@ export default function ProgramsPage() {
     }
   };
 
-  const deleteExercise = (exerciseId: string) => {
+  const deleteExercise = (exerciseId: number) => {
     setExercises(exercises.filter(ex => ex.id !== exerciseId));
     setProgramExercises(programExercises.filter(pe => pe.exerciseId !== exerciseId));
   };
 
   const editExercise = () => {
     if (editingExercise && newExerciseName.trim()) {
+      const bodyPartObj = bodyParts.find(bp => bp.id === newExerciseBodyPart);
+      if (!bodyPartObj) return;
+
       setExercises(exercises.map(ex => 
         ex.id === editingExercise.id 
-          ? { ...ex, name: newExerciseName.trim(), bodyPart: newExerciseBodyPart }
+          ? { ...ex, name: newExerciseName.trim(), bodyPart: bodyPartObj.name, bodyPartId: bodyPartObj.id }
           : ex
       ));
       setEditingExercise(null);
@@ -282,8 +265,12 @@ export default function ProgramsPage() {
     setProgramExercises(programExercises.filter(pe => pe.id !== id));
   };
 
-  const getExerciseName = (exerciseId: string) => {
+  const getExerciseName = (exerciseId: number) => {
     return exercises.find(ex => ex.id === exerciseId)?.name || '';
+  };
+
+  const getExerciseBodyPart = (exerciseId: number) => {
+    return exercises.find(ex => ex.id === exerciseId)?.bodyPart || '';
   };
 
   const saveProgram = () => {
@@ -313,6 +300,72 @@ export default function ProgramsPage() {
 
   const getTotalSets = (program: Program) => {
     return program.exercises.reduce((total, ex) => total + ex.sets.length, 0);
+  };
+
+  const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchWorkoutData = async () => {
+      try {
+        const fetchedBodyParts = await getWorkoutParts();
+        const fetchedExercises = await getWorkouts();
+        setBodyParts(fetchedBodyParts);
+        setExercises(fetchedExercises);
+      } catch (error) {
+        console.error("운동 데이터를 불러오는 데 실패했습니다:", error);
+        // 사용자에게 에러 메시지를 표시하는 로직 추가
+      }
+    };
+
+    fetchWorkoutData();
+  }, []);
+
+  const handleDragStart = (e: React.DragEvent, exerciseId: number) => {
+    setDraggedExerciseId(exerciseId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetExerciseId: number) => {
+    e.preventDefault();
+    
+    if (!draggedExerciseId || draggedExerciseId === targetExerciseId) {
+      setDraggedExerciseId(null);
+      return;
+    }
+
+    const draggedIndex = programExercises.findIndex(ex => ex.exerciseId === draggedExerciseId);
+    const targetIndex = programExercises.findIndex(ex => ex.exerciseId === targetExerciseId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedExerciseId(null);
+      return;
+    }
+
+    const newExercises = [...programExercises];
+    const [draggedItem] = newExercises.splice(draggedIndex, 1);
+    newExercises.splice(targetIndex, 0, draggedItem);
+
+    setProgramExercises(newExercises);
+    setDraggedExerciseId(null);
+  };
+
+  const moveExerciseUp = (index: number) => {
+    if (index === 0) return;
+    const newExercises = [...programExercises];
+    [newExercises[index - 1], newExercises[index]] = [newExercises[index], newExercises[index - 1]];
+    setProgramExercises(newExercises);
+  };
+
+  const moveExerciseDown = (index: number) => {
+    if (index === programExercises.length - 1) return;
+    const newExercises = [...programExercises];
+    [newExercises[index], newExercises[index + 1]] = [newExercises[index + 1], newExercises[index]];
+    setProgramExercises(newExercises);
   };
 
   // 프로그램 목록 화면
@@ -542,7 +595,7 @@ export default function ProgramsPage() {
             </div>
           )}
 
-          {/* 2단계: 운동 부위 선택 */}
+          {/* 2단계: 운동 부위 선택 (다중 선택) */}
           {currentStep === 2 && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -557,21 +610,36 @@ export default function ProgramsPage() {
                 </Button>
               </div>
               
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <i className="ri-information-line mr-1"></i>
+                  여러 운동 부위를 선택할 수 있습니다. 선택된 부위: 
+                  <span className="font-medium ml-1">
+                    {selectedBodyParts.length > 0 ? selectedBodyParts.join(', ') : '없음'}
+                  </span>
+                </p>
+              </div>
+              
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                 {bodyParts.map((bodyPart) => (
-                  <div key={bodyPart} className="relative group">
+                  <div key={bodyPart.id} className="relative group">
                     <button
-                      onClick={() => setSelectedBodyPart(selectedBodyPart === bodyPart ? '' : bodyPart)}
+                      onClick={() => toggleBodyPart(bodyPart.name)}
                       className={`w-full p-3 rounded-lg border-2 transition-colors ${
-                        selectedBodyPart === bodyPart
+                        selectedBodyParts.includes(bodyPart.name)
                           ? 'border-blue-600 bg-blue-50 text-blue-600'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      {bodyPart}
+                      <div className="flex items-center justify-center gap-2">
+                        {selectedBodyParts.includes(bodyPart.name) && (
+                          <i className="ri-check-line text-sm"></i>
+                        )}
+                        <span>{bodyPart.name}</span>
+                      </div>
                     </button>
                     <button
-                      onClick={() => deleteBodyPart(bodyPart)}
+                      onClick={() => deleteBodyPart(bodyPart.name)}
                       className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <i className="ri-close-line text-xs"></i>
@@ -587,7 +655,7 @@ export default function ProgramsPage() {
                 </Button>
                 <Button 
                   onClick={() => setCurrentStep(3)}
-                  disabled={!selectedBodyPart}
+                  disabled={selectedBodyParts.length === 0}
                 >
                   다음 단계
                   <i className="ri-arrow-right-line ml-2"></i>
@@ -596,7 +664,7 @@ export default function ProgramsPage() {
             </div>
           )}
 
-          {/* 3단계: 운동 항목 선택 */}
+          {/* 3단계: 운동 항목 선택 (부위별) */}
           {currentStep === 3 && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -615,46 +683,166 @@ export default function ProgramsPage() {
 
               <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-700">
-                  선택된 부위: <span className="font-medium">{selectedBodyPart}</span>
+                  선택된 부위별로 운동을 추가하세요: <span className="font-medium">{selectedBodyParts.join(', ')}</span>
                 </p>
               </div>
 
-              <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
-                {filteredExercises.map((exercise) => (
-                  <div key={exercise.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                    <span className="font-medium">{exercise.name}</span>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => addExerciseToProgram(exercise)}
-                        disabled={programExercises.some(pe => pe.exerciseId === exercise.id)}
-                      >
-                        {programExercises.some(pe => pe.exerciseId === exercise.id) ? '추가됨' : '추가'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingExercise(exercise);
-                          setNewExerciseName(exercise.name);
-                          setNewExerciseBodyPart(exercise.bodyPart);
-                          setShowEditExerciseModal(true);
-                        }}
-                      >
-                        <i className="ri-edit-line"></i>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteExercise(exercise.id)}
-                        className="text-red-600 hover:bg-red-50"
-                      >
-                        <i className="ri-delete-bin-line"></i>
-                      </Button>
+              {/* 부위별 운동 목록 */}
+              <div className="space-y-6 mb-6">
+                {selectedBodyParts.map((bodyPart) => {
+                  const bodyPartExercises = exercises.filter(ex => ex.bodyPart === bodyPart);
+                  return (
+                    <div key={bodyPart} className="border rounded-lg p-4 bg-white">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <span className="w-3 h-3 bg-blue-600 rounded-full"></span>
+                        {bodyPart} 운동
+                      </h3>
+                      
+                      {bodyPartExercises.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">
+                          <p className="text-sm">이 부위에 등록된 운동이 없습니다.</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => {
+                              const part = bodyParts.find(p => p.name === bodyPart);
+                              if (part) {
+                                setNewExerciseBodyPart(part.id);
+                                setShowAddExerciseModal(true);
+                              }
+                            }}
+                          >
+                            운동 추가하기
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {bodyPartExercises.map((exercise) => (
+                            <div key={exercise.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                              <span className="font-medium">{exercise.name}</span>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => addExerciseToProgram(exercise)}
+                                  disabled={programExercises.some(pe => pe.exerciseId === exercise.id)}
+                                  className="whitespace-nowrap"
+                                >
+                                  {programExercises.some(pe => pe.exerciseId === exercise.id) ? (
+                                    <>
+                                      <i className="ri-check-line mr-1"></i>
+                                      추가됨
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="ri-add-line mr-1"></i>
+                                      추가
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingExercise(exercise);
+                                    setNewExerciseName(exercise.name);
+                                    setNewExerciseBodyPart(exercise.bodyPartId);
+                                    setShowEditExerciseModal(true);
+                                  }}
+                                  className="whitespace-nowrap"
+                                >
+                                  <i className="ri-edit-line"></i>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => deleteExercise(exercise.id)}
+                                  className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                                >
+                                  <i className="ri-delete-bin-line"></i>
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* 선택된 운동 목록 */}
+              {programExercises.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900">선택된 운동 ({programExercises.length}개)</h3>
+                    <p className="text-sm text-gray-600">
+                      <i className="ri-drag-move-line mr-1"></i>
+                      드래그하여 순서 변경
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {programExercises.map((programExercise, index) => (
+                      <div 
+                        key={programExercise.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, programExercise.exerciseId)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, programExercise.exerciseId)}
+                        className={`flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg cursor-move hover:shadow-md transition-all ${
+                          draggedExerciseId === programExercise.exerciseId ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => moveExerciseUp(index)}
+                              disabled={index === 0}
+                              className={`w-6 h-6 flex items-center justify-center rounded ${
+                                index === 0 
+                                  ? 'text-gray-300 cursor-not-allowed' 
+                                  : 'text-gray-600 hover:bg-green-200 cursor-pointer'
+                              }`}
+                            >
+                              <i className="ri-arrow-up-s-line text-sm"></i>
+                            </button>
+                            <button
+                              onClick={() => moveExerciseDown(index)}
+                              disabled={index === programExercises.length - 1}
+                              className={`w-6 h-6 flex items-center justify-center rounded ${
+                                index === programExercises.length - 1
+                                  ? 'text-gray-300 cursor-not-allowed' 
+                                  : 'text-gray-600 hover:bg-green-200 cursor-pointer'
+                              }`}
+                            >
+                              <i className="ri-arrow-down-s-line text-sm"></i>
+                            </button>
+                          </div>
+                          <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <span className="font-medium text-green-800">{getExerciseName(programExercise.exerciseId)}</span>
+                            <span className="text-sm text-green-600 ml-2">({getExerciseBodyPart(programExercise.exerciseId)})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <i className="ri-draggable text-gray-400"></i>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeExerciseFromProgram(programExercise.id)}
+                            className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                          >
+                            <i className="ri-close-line mr-1"></i>
+                            제거
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => setCurrentStep(2)}>
@@ -681,12 +869,16 @@ export default function ProgramsPage() {
                 {programExercises.map((programExercise) => (
                   <div key={programExercise.id} className="p-4 border rounded-lg bg-white">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-lg">{getExerciseName(programExercise.exerciseId)}</h3>
+                      <div>
+                        <h3 className="font-medium text-lg">{getExerciseName(programExercise.exerciseId)}</h3>
+                        <span className="text-sm text-gray-600">({getExerciseBodyPart(programExercise.exerciseId)})</span>
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => addSetToExercise(programExercise.id)}
+                          className="whitespace-nowrap"
                         >
                           <i className="ri-add-line mr-1"></i>
                           세트 추가
@@ -695,7 +887,7 @@ export default function ProgramsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => removeExerciseFromProgram(programExercise.id)}
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-red-600 hover:bg-red-50 whitespace-nowrap"
                         >
                           <i className="ri-delete-bin-line"></i>
                         </Button>
@@ -712,7 +904,7 @@ export default function ProgramsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeSetFromExercise(programExercise.id, set.id)}
-                                className="text-red-600 hover:bg-red-50"
+                                className="text-red-600 hover:bg-red-50 whitespace-nowrap"
                               >
                                 <i className="ri-close-line"></i>
                               </Button>
@@ -823,12 +1015,11 @@ export default function ProgramsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">운동 부위</label>
                 <select
                   value={newExerciseBodyPart}
-                  onChange={(e) => setNewExerciseBodyPart(e.target.value)}
+                  onChange={(e) => setNewExerciseBodyPart(parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
                 >
-                  <option value="">부위 선택</option>
                   {bodyParts.map((bodyPart) => (
-                    <option key={bodyPart} value={bodyPart}>{bodyPart}</option>
+                    <option key={bodyPart.id} value={bodyPart.id}>{bodyPart.name}</option>
                   ))}
                 </select>
               </div>
@@ -858,11 +1049,11 @@ export default function ProgramsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">운동 부위</label>
                 <select
                   value={newExerciseBodyPart}
-                  onChange={(e) => setNewExerciseBodyPart(e.target.value)}
+                  onChange={(e) => setNewExerciseBodyPart(parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
                 >
                   {bodyParts.map((bodyPart) => (
-                    <option key={bodyPart} value={bodyPart}>{bodyPart}</option>
+                    <option key={bodyPart.id} value={bodyPart.id}>{bodyPart.name}</option>
                   ))}
                 </select>
               </div>

@@ -36,7 +36,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <a href="/" className="flex items-center">
-              <div className="text-xl font-bold text-blue-600">FitTracker</div>
+              <div className="text-xl font-bold text-blue-600">Fitlog</div>
             </a>
             <div className="flex items-center space-x-4">
               <button
@@ -95,7 +95,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              왜 FitTracker를 선택해야 할까요?
+              왜 Fitlog를 선택해야 할까요?
             </h2>
             <p className="text-xl text-gray-600">
               효과적인 운동 관리를 위한 모든 기능을 제공합니다
@@ -159,7 +159,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="text-xl font-bold text-blue-400 mb-4">FitTracker</div>
+              <div className="text-xl font-bold text-blue-400 mb-4">Fitlog</div>
               <p className="text-gray-400">
                 스마트한 운동 관리로 건강한 라이프스타일을 만들어보세요
               </p>
@@ -190,7 +190,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 FitTracker. All rights reserved. | 
+            <p>&copy; 2024 Fitlog. All rights reserved. | 
               <a href="https://readdy.ai/?origin=logo" className="hover:text-white ml-1">Powered by Readdy</a>
             </p>
           </div>

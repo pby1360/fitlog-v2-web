@@ -60,7 +60,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* 로고 */}
           <Link to="/dashboard" className="flex items-center" onClick={closeMobileMenu}>
-            <div className="text-xl font-bold text-blue-600">FitTracker</div>
+            <div className="text-xl font-bold text-blue-600">Fitlog</div>
           </Link>
 
           {/* 데스크톱 네비게이션 메뉴 */}
