@@ -4,8 +4,7 @@ import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
 import Header from '../../components/feature/Header';
-
-import { getWorkoutParts, getWorkouts } from '../../services/api';
+import { getWorkoutParts, getWorkouts, saveWorkoutProgram, SaveProgramRequest, getWorkoutPrograms, ProgramResponse } from '../../services/api';
 
 interface WorkoutPart {
   id: number;
@@ -19,85 +18,64 @@ interface Exercise {
   bodyPartId: number;
 }
 
-interface ExerciseSetDetail {
-  id: string;
+// 서버 응답에 맞춰 Program 인터페이스 재정의
+interface ProgramSet {
+  id: number;
+  setNumber: number;
   reps: number;
   weight?: number;
   restTime: number;
   memo?: string;
 }
 
-interface ExerciseSet {
-  id: string;
-  exerciseId: number;
-  sets: ExerciseSetDetail[];
+interface ProgramExercise {
+  id: number;
+  workoutId: number;
+  workoutName: string;
+  workoutPartName: string;
+  order: number;
+  sets: ProgramSet[];
+}
+
+interface ProgramPart {
+  id: number;
+  workoutPartId: number;
+  workoutPartName: string;
+  order: number;
+  exercises: ProgramExercise[];
 }
 
 interface Program {
-  id: string;
+  id: number;
   name: string;
   description: string;
-  exercises: ExerciseSet[];
   createdAt: string;
+  parts: ProgramPart[];
 }
-
-const samplePrograms: Program[] = [
-  {
-    id: '1',
-    name: '상체 집중 루틴',
-    description: '가슴, 등, 어깨를 중심으로 한 상체 강화 프로그램',
-    exercises: [
-      {
-        id: 'ex1',
-        exerciseId: 1,
-        sets: [
-          { id: 'set1', reps: 12, weight: 60, restTime: 90 },
-          { id: 'set2', reps: 10, weight: 65, restTime: 90 },
-          { id: 'set3', reps: 8, weight: 70, restTime: 120 }
-        ]
-      },
-      {
-        id: 'ex2',
-        exerciseId: 6,
-        sets: [
-          { id: 'set4', reps: 8, restTime: 120 },
-          { id: 'set5', reps: 6, restTime: 120 },
-          { id: 'set6', reps: 5, restTime: 180 }
-        ]
-      }
-    ],
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: '하체 강화 프로그램',
-    description: '스쿼트와 런지를 중심으로 한 하체 근력 향상',
-    exercises: [
-      {
-        id: 'ex3',
-        exerciseId: 18,
-        sets: [
-          { id: 'set7', reps: 15, weight: 80, restTime: 120 },
-          { id: 'set8', reps: 12, weight: 90, restTime: 120 },
-          { id: 'set9', reps: 10, weight: 100, restTime: 150 }
-        ]
-      }
-    ],
-    createdAt: '2024-01-10'
-  }
-];
-
 
 export default function ProgramsPage() {
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
-  const [programs, setPrograms] = useState<Program[]>(samplePrograms);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedBodyParts, setSelectedBodyParts] = useState<string[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [bodyParts, setBodyParts] = useState<WorkoutPart[]>([]);
-  const [programExercises, setProgramExercises] = useState<ExerciseSet[]>([]);
+  // 프로그램 생성/수정 중인 운동 세트 (ProgramExercise와는 다른 구조)
+  // 이 상태는 임시로 사용하며, 최종 저장 시 ProgramExercise[]로 변환됨
+  interface CurrentExerciseSet {
+    id: string; // 클라이언트 측 임시 ID
+    exerciseId: number; // 실제 운동 ID
+    sets: { 
+      id: string; // 클라이언트 측 임시 ID
+      reps: number; 
+      weight?: number; 
+      restTime: number; 
+      memo?: string; 
+    }[];
+  }
+  const [programExercises, setProgramExercises] = useState<CurrentExerciseSet[]>([]);
   const [programName, setProgramName] = useState('');
   const [programDescription, setProgramDescription] = useState('');
   
@@ -106,7 +84,7 @@ export default function ProgramsPage() {
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
+  const [deletingProgramId, setDeletingProgramId] = useState<number | null>(null);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [newBodyPart, setNewBodyPart] = useState('');
   const [newExerciseName, setNewExerciseName] = useState('');
@@ -130,12 +108,43 @@ export default function ProgramsPage() {
     setEditingProgram(program);
     setProgramName(program.name);
     setProgramDescription(program.description);
-    setProgramExercises(program.exercises);
+
+    // 서버에서 받은 ProgramResponse 구조를 CurrentExerciseSet[]으로 변환
+    const mappedProgramExercises: CurrentExerciseSet[] = [];
+    program.parts.forEach(part => {
+      part.exercises.forEach(exercise => {
+        mappedProgramExercises.push({
+          id: exercise.id.toString(), // 서버 ID를 클라이언트 임시 ID로 사용
+          exerciseId: exercise.workoutId,
+          sets: exercise.sets.map(set => ({
+            id: set.id.toString(), // 서버 ID를 클라이언트 임시 ID로 사용
+            reps: set.reps,
+            weight: set.weight,
+            restTime: set.restTime,
+            memo: set.memo,
+          })),
+        });
+      });
+    });
+    setProgramExercises(mappedProgramExercises);
+
     setView('edit');
     setCurrentStep(1);
   };
 
-  const deleteProgram = (programId: string) => {
+  const fetchWorkoutPrograms = async () => {
+    try {
+      const fetchedPrograms = await getWorkoutPrograms();
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error("프로그램 목록을 불러오는 데 실패했습니다:", error);
+      // 사용자에게 에러 메시지를 표시하는 로직 추가
+      setPrograms([]);
+    }
+  };
+
+  const deleteProgram = (programId: number) => {
+    // TODO: 백엔드 delete API 연동 필요
     setPrograms(programs.filter(p => p.id !== programId));
     setShowDeleteModal(false);
     setDeletingProgramId(null);
@@ -208,7 +217,7 @@ export default function ProgramsPage() {
   };
 
   const addExerciseToProgram = (exercise: Exercise) => {
-    const newProgramExercise: ExerciseSet = {
+    const newProgramExercise: CurrentExerciseSet = {
       id: Date.now().toString(),
       exerciseId: exercise.id,
       sets: [
@@ -248,7 +257,7 @@ export default function ProgramsPage() {
     ));
   };
 
-  const updateSet = (exerciseSetId: string, setId: string, field: keyof ExerciseSetDetail, value: number | string) => {
+  const updateSet = (exerciseSetId: string, setId: string, field: keyof CurrentExerciseSet['sets'][0], value: number | string) => {
     setProgramExercises(programExercises.map(pe => 
       pe.id === exerciseSetId 
         ? {
@@ -273,51 +282,91 @@ export default function ProgramsPage() {
     return exercises.find(ex => ex.id === exerciseId)?.bodyPart || '';
   };
 
-  const saveProgram = () => {
-    if (programName.trim() && programExercises.length > 0) {
-      const newProgram: Program = {
-        id: editingProgram?.id || Date.now().toString(),
-        name: programName.trim(),
-        description: programDescription.trim(),
-        exercises: programExercises,
-        createdAt: editingProgram?.createdAt || new Date().toISOString().split('T')[0]
-      };
+  const saveProgram = async () => {
+    if (!programName.trim() || programExercises.length === 0) {
+      alert('프로그램 이름과 최소 하나 이상의 운동을 포함해야 합니다.');
+      return;
+    }
 
-      if (editingProgram) {
-        setPrograms(programs.map(p => p.id === editingProgram.id ? newProgram : p));
-      } else {
-        setPrograms([...programs, newProgram]);
+    // 데이터를 백엔드 DTO 구조로 변환 (ID 기반)
+    const partsMap = new Map<number, { workoutPartId: number; exercises: any[] }>();
+
+    programExercises.forEach((pe) => {
+      const exerciseInfo = exercises.find(ex => ex.id === pe.exerciseId);
+      if (!exerciseInfo) return;
+
+      const partId = exerciseInfo.bodyPartId;
+      if (!partsMap.has(partId)) {
+        partsMap.set(partId, {
+          workoutPartId: partId,
+          exercises: [],
+        });
       }
 
+      const part = partsMap.get(partId);
+      if (part) {
+        part.exercises.push({
+          workoutId: exerciseInfo.id,
+          sets: pe.sets.map((set, setIndex) => ({
+            setNumber: setIndex + 1,
+            reps: set.reps,
+            weight: set.weight,
+            restTime: set.restTime,
+            memo: set.memo,
+          })),
+        });
+      }
+    });
+
+    const payload: SaveProgramRequest = {
+      name: programName.trim(),
+      description: programDescription.trim(),
+      parts: Array.from(partsMap.values()),
+    };
+
+    try {
+      await saveWorkoutProgram(payload);
+      await fetchWorkoutPrograms(); // 목록 새로고침
       resetForm();
       setView('list');
+    } catch (error) {
+      console.error('프로그램 저장 실패:', error);
+      alert('프로그램 저장에 실패했습니다.');
     }
   };
 
   const getExerciseCount = (program: Program) => {
-    return program.exercises.length;
+    // exercises 대신 parts의 exercises 개수를 합산
+    return program.parts.reduce((total, part) => total + part.exercises.length, 0);
   };
 
   const getTotalSets = (program: Program) => {
-    return program.exercises.reduce((total, ex) => total + ex.sets.length, 0);
+    // exercises 대신 parts의 exercises 내부 sets 개수를 합산
+    return program.parts.reduce((total, part) => 
+      total + part.exercises.reduce((exTotal, ex) => exTotal + ex.sets.length, 0)
+    , 0);
   };
 
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
 
   useEffect(() => {
-    const fetchWorkoutData = async () => {
+    const fetchInitialData = async () => {
       try {
-        const fetchedBodyParts = await getWorkoutParts();
-        const fetchedExercises = await getWorkouts();
+        const [fetchedBodyParts, fetchedExercises, fetchedPrograms] = await Promise.all([
+          getWorkoutParts(),
+          getWorkouts(),
+          getWorkoutPrograms()
+        ]);
         setBodyParts(fetchedBodyParts);
         setExercises(fetchedExercises);
+        setPrograms(fetchedPrograms);
       } catch (error) {
-        console.error("운동 데이터를 불러오는 데 실패했습니다:", error);
+        console.error("초기 데이터를 불러오는 데 실패했습니다:", error);
         // 사용자에게 에러 메시지를 표시하는 로직 추가
       }
     };
 
-    fetchWorkoutData();
+    fetchInitialData();
   }, []);
 
   const handleDragStart = (e: React.DragEvent, exerciseId: number) => {
