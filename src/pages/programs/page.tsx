@@ -4,7 +4,7 @@ import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
 import Header from '../../components/feature/Header';
-import { getWorkoutParts, getWorkouts, saveWorkoutProgram, SaveProgramRequest, getWorkoutPrograms, ProgramResponse } from '../../services/api';
+import { getWorkoutParts, getWorkouts, saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, getWorkoutPrograms, type ProgramResponse, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
 
 interface WorkoutPart {
   id: number;
@@ -110,22 +110,21 @@ export default function ProgramsPage() {
     setProgramDescription(program.description);
 
     // 서버에서 받은 ProgramResponse 구조를 CurrentExerciseSet[]으로 변환
-    const mappedProgramExercises: CurrentExerciseSet[] = [];
-    program.parts.forEach(part => {
-      part.exercises.forEach(exercise => {
-        mappedProgramExercises.push({
-          id: exercise.id.toString(), // 서버 ID를 클라이언트 임시 ID로 사용
-          exerciseId: exercise.workoutId,
-          sets: exercise.sets.map(set => ({
-            id: set.id.toString(), // 서버 ID를 클라이언트 임시 ID로 사용
-            reps: set.reps,
-            weight: set.weight,
-            restTime: set.restTime,
-            memo: set.memo,
-          })),
-        });
-      });
-    });
+    // 이 때, exerciseId는 ProgramExerciseResponse의 workoutId를 사용하고,
+    // sets의 id는 ProgramSetResponse의 id를 사용합니다.
+    const mappedProgramExercises: CurrentExerciseSet[] = program.parts.flatMap(part => 
+      part.exercises.map(exercise => ({
+        id: exercise.id.toString(), // 서버측 ProgramExercise ID를 클라이언트 임시 ID로 사용
+        exerciseId: exercise.workoutId, // 실제 운동 ID
+        sets: exercise.sets.map(set => ({
+          id: set.id.toString(), // 서버측 ProgramSet ID를 클라이언트 임시 ID로 사용
+          reps: set.reps,
+          weight: set.weight,
+          restTime: set.restTime,
+          memo: set.memo,
+        })),
+      }))
+    );
     setProgramExercises(mappedProgramExercises);
 
     setView('edit');
@@ -143,29 +142,59 @@ export default function ProgramsPage() {
     }
   };
 
-  const deleteProgram = (programId: number) => {
-    // TODO: 백엔드 delete API 연동 필요
-    setPrograms(programs.filter(p => p.id !== programId));
-    setShowDeleteModal(false);
-    setDeletingProgramId(null);
-  };
-
-  const addBodyPart = () => {
-    if (newBodyPart.trim() && !bodyParts.some(bp => bp.name === newBodyPart.trim())) {
-      const newBodyPartObj: WorkoutPart = {
-        id: Date.now(), // 임시 ID, 실제로는 백엔드에서 생성된 ID를 사용해야 함
-        name: newBodyPart.trim()
-      };
-      setBodyParts([...bodyParts, newBodyPartObj]);
-      setNewBodyPart('');
-      setShowAddBodyPartModal(false);
+  const handleDeleteProgram = async (programId: number) => {
+    try {
+      await deleteWorkoutProgram(programId);
+      await fetchWorkoutPrograms(); // 목록 새로고침
+      setShowDeleteModal(false);
+      setDeletingProgramId(null);
+    } catch (error) {
+      console.error('프로그램 삭제 실패:', error);
+      alert('프로그램 삭제에 실패했습니다.');
     }
   };
 
-  const deleteBodyPart = (bodyPartName: string) => {
-    setBodyParts(bodyParts.filter(bp => bp.name !== bodyPartName));
-    setExercises(exercises.filter(ex => ex.bodyPart !== bodyPartName));
-    setSelectedBodyParts(selectedBodyParts.filter(bp => bp !== bodyPartName));
+  const fetchBodyParts = async () => {
+    try {
+      const fetchedBodyParts = await getWorkoutParts();
+      setBodyParts(fetchedBodyParts);
+    } catch (error) {
+      console.error("운동 부위를 불러오는 데 실패했습니다:", error);
+    }
+  };
+
+  const fetchWorkouts = async () => {
+    try {
+      const fetchedWorkouts = await getWorkouts();
+      setExercises(fetchedWorkouts);
+    } catch (error) {
+      console.error("운동 목록을 불러오는 데 실패했습니다:", error);
+    }
+  };
+
+  const handleAddBodyPart = async () => {
+    if (newBodyPart.trim() && !bodyParts.some(bp => bp.name === newBodyPart.trim())) {
+      try {
+        await addWorkoutPart(newBodyPart.trim());
+        await fetchBodyParts();
+        setNewBodyPart('');
+        setShowAddBodyPartModal(false);
+      } catch (error) {
+        console.error("운동 부위 추가 실패:", error);
+        alert("운동 부위 추가에 실패했습니다.");
+      }
+    }
+  };
+
+  const handleDeleteBodyPart = async (bodyPartId: number) => {
+    try {
+      await deleteWorkoutPart(bodyPartId);
+      await fetchBodyParts();
+      await fetchWorkouts();
+    } catch (error) {
+      console.error("운동 부위 삭제 실패:", error);
+      alert("운동 부위 삭제에 실패했습니다.");
+    }
   };
 
   const toggleBodyPart = (bodyPartName: string) => {
@@ -176,43 +205,44 @@ export default function ProgramsPage() {
     }
   };
 
-  const addExercise = () => {
+  const handleAddExercise = async () => {
     if (newExerciseName.trim() && newExerciseBodyPart) {
-      const bodyPartObj = bodyParts.find(bp => bp.id === newExerciseBodyPart);
-      if (!bodyPartObj) return;
-
-      const newExercise: Exercise = {
-        id: Date.now(), // 임시 ID, 실제로는 백엔드에서 생성된 ID를 사용해야 함
-        name: newExerciseName.trim(),
-        bodyPart: bodyPartObj.name,
-        bodyPartId: bodyPartObj.id
-      };
-      setExercises([...exercises, newExercise]);
-      setNewExerciseName('');
-      setNewExerciseBodyPart('');
-      setShowAddExerciseModal(false);
+      try {
+        await addWorkout(newExerciseName.trim(), newExerciseBodyPart);
+        await fetchWorkouts();
+        setNewExerciseName('');
+        setNewExerciseBodyPart('');
+        setShowAddExerciseModal(false);
+      } catch (error) {
+        console.error("운동 추가 실패:", error);
+        alert("운동 추가에 실패했습니다.");
+      }
     }
   };
 
-  const deleteExercise = (exerciseId: number) => {
-    setExercises(exercises.filter(ex => ex.id !== exerciseId));
-    setProgramExercises(programExercises.filter(pe => pe.exerciseId !== exerciseId));
+  const handleDeleteExercise = async (exerciseId: number) => {
+    try {
+      await deleteWorkout(exerciseId);
+      await fetchWorkouts();
+    } catch (error) {
+      console.error("운동 삭제 실패:", error);
+      alert("운동 삭제에 실패했습니다.");
+    }
   };
 
-  const editExercise = () => {
-    if (editingExercise && newExerciseName.trim()) {
-      const bodyPartObj = bodyParts.find(bp => bp.id === newExerciseBodyPart);
-      if (!bodyPartObj) return;
-
-      setExercises(exercises.map(ex => 
-        ex.id === editingExercise.id 
-          ? { ...ex, name: newExerciseName.trim(), bodyPart: bodyPartObj.name, bodyPartId: bodyPartObj.id }
-          : ex
-      ));
-      setEditingExercise(null);
-      setNewExerciseName('');
-      setNewExerciseBodyPart('');
-      setShowEditExerciseModal(false);
+  const handleEditExercise = async () => {
+    if (editingExercise && newExerciseName.trim() && newExerciseBodyPart) {
+      try {
+        await updateWorkout(editingExercise.id, newExerciseName.trim(), newExerciseBodyPart);
+        await fetchWorkouts();
+        setEditingExercise(null);
+        setNewExerciseName('');
+        setNewExerciseBodyPart('');
+        setShowEditExerciseModal(false);
+      } catch (error) {
+        console.error("운동 수정 실패:", error);
+        alert("운동 수정에 실패했습니다.");
+      }
     }
   };
 
@@ -325,13 +355,17 @@ export default function ProgramsPage() {
     };
 
     try {
-      await saveWorkoutProgram(payload);
+      if (view === 'edit' && editingProgram) {
+        await updateWorkoutProgram(editingProgram.id, payload);
+      } else {
+        await saveWorkoutProgram(payload);
+      }
       await fetchWorkoutPrograms(); // 목록 새로고침
       resetForm();
       setView('list');
     } catch (error) {
-      console.error('프로그램 저장 실패:', error);
-      alert('프로그램 저장에 실패했습니다.');
+      console.error('프로그램 저장/수정 실패:', error);
+      alert('프로그램 저장/수정에 실패했습니다.');
     }
   };
 
@@ -688,7 +722,7 @@ export default function ProgramsPage() {
                       </div>
                     </button>
                     <button
-                      onClick={() => deleteBodyPart(bodyPart.name)}
+                      onClick={() => handleDeleteBodyPart(bodyPart.id)}
                       className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <i className="ri-close-line text-xs"></i>
@@ -805,7 +839,7 @@ export default function ProgramsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => deleteExercise(exercise.id)}
+                                  onClick={() => handleDeleteExercise(exercise.id)}
                                   className="text-red-600 hover:bg-red-50 whitespace-nowrap"
                                 >
                                   <i className="ri-delete-bin-line"></i>
@@ -1042,7 +1076,7 @@ export default function ProgramsPage() {
               <Button variant="outline" onClick={() => setShowAddBodyPartModal(false)}>
                 취소
               </Button>
-              <Button onClick={addBodyPart}>추가</Button>
+              <Button onClick={handleAddBodyPart}>추가</Button>
             </div>
           </div>
         </div>
@@ -1077,7 +1111,7 @@ export default function ProgramsPage() {
               <Button variant="outline" onClick={() => setShowAddExerciseModal(false)}>
                 취소
               </Button>
-              <Button onClick={addExercise}>추가</Button>
+              <Button onClick={handleAddExercise}>추가</Button>
             </div>
           </div>
         </div>
@@ -1111,7 +1145,7 @@ export default function ProgramsPage() {
               <Button variant="outline" onClick={() => setShowEditExerciseModal(false)}>
                 취소
               </Button>
-              <Button onClick={editExercise}>수정</Button>
+              <Button onClick={handleEditExercise}>수정</Button>
             </div>
           </div>
         </div>

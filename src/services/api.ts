@@ -36,8 +36,48 @@ export const getWorkoutParts = async (): Promise<WorkoutPartResponse[]> => {
   return fetchWithAuth(`${API_BASE_URL}/workout/parts`);
 };
 
+export const addWorkoutPart = async (name: string): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/parts`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const updateWorkoutPart = async (id: number, name: string): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/parts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const deleteWorkoutPart = async (id: number): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/parts/${id}`, {
+    method: 'DELETE',
+  });
+};
+
 export const getWorkouts = async (): Promise<WorkoutResponse[]> => {
-  return fetchWithAuth(`${API_BASE_URL}/workout/list`);
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts`);
+};
+
+export const addWorkout = async (name: string, workoutPartId: number): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts`, {
+    method: 'POST',
+    body: JSON.stringify({ name, workoutPartId }),
+  });
+};
+
+export const updateWorkout = async (id: number, name: string, workoutPartId: number): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, workoutPartId }),
+  });
+};
+
+export const deleteWorkout = async (id: number): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+    method: 'DELETE',
+  });
 };
 
 // 프로그램 저장을 위한 타입 정의
@@ -69,6 +109,19 @@ export const saveWorkoutProgram = async (programData: SaveProgramRequest): Promi
   return fetchWithAuth(`${API_BASE_URL}/workout-programs`, {
     method: 'POST',
     body: JSON.stringify(programData),
+  });
+};
+
+export const updateWorkoutProgram = async (programId: number, programData: SaveProgramRequest): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout-programs/${programId}`, {
+    method: 'PUT',
+    body: JSON.stringify(programData),
+  });
+};
+
+export const deleteWorkoutProgram = async (programId: number): Promise<void> => {
+  return fetchWithAuth(`${API_BASE_URL}/workout-programs/${programId}`, {
+    method: 'DELETE',
   });
 };
 
@@ -109,4 +162,8 @@ export interface ProgramResponse {
 
 export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
   return fetchWithAuth(`${API_BASE_URL}/workout-programs`);
+};
+
+export const getMyInfo = async (): Promise<any> => {
+  return fetchWithAuth(`${API_BASE_URL}/members/me`);
 };
