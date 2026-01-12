@@ -1,3 +1,5 @@
+import { redirectToHome } from '../utils/navigationService';
+
 const API_BASE_URL = 'http://localhost:8080/api'; // 백엔드 API 기본 URL
 
 interface WorkoutPartResponse {
@@ -12,9 +14,10 @@ interface WorkoutResponse {
   bodyPartId: number;
 }
 
-// TODO: 실제 인증 토큰을 전달하도록 수정해야 함
+let isRedirecting = false;
+
 const fetchWithAuth = async (url: string, options?: RequestInit) => {
-  const token = localStorage.getItem('accessToken'); // 여기에 실제 JWT 토큰을 넣어야 합니다.
+  const token = localStorage.getItem('accessToken');
   const headers = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -22,6 +25,16 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
   };
 
   const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    if (!isRedirecting) {
+      isRedirecting = true;
+      localStorage.removeItem('accessToken');
+      redirectToHome();
+    }
+    throw new Error('Unauthorized');
+  }
+
   if (!response.ok) {
     // 에러 처리 로직
     const errorData = await response.json().catch(() => ({ message: 'API 요청 실패' }));

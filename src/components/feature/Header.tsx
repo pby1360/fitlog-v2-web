@@ -117,9 +117,13 @@ export default function Header() {
             <div className="relative" ref={userMenuRef}>
               <button 
                 onClick={toggleUserMenu}
-                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md flex items-center justify-center"
               >
-                <i className="ri-user-line text-xl"></i>
+                {localStorage.getItem('imageUrl') ? (
+                  <img src={localStorage.getItem('imageUrl') || undefined} alt="User Profile" className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <i className="ri-user-line text-xl"></i>
+                )}
               </button>
               
               {isUserMenuOpen && (

@@ -3,12 +3,7 @@ import { Link } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
-
-interface Exercise {
-  id: string;
-  name: string;
-  bodyPart: string;
-}
+import { getWorkoutPrograms, getWorkouts, ProgramResponse, WorkoutResponse } from '../../services/api';
 
 interface ExerciseSetDetail {
   id: string;
@@ -23,13 +18,15 @@ interface ExerciseSetDetail {
 
 interface ExerciseSet {
   id: string;
-  exerciseId: string;
+  exerciseId: number; // 서버 응답에 맞춰 number로 변경
+  workoutName: string; // 새로 추가
+  workoutPartName: string; // 새로 추가
   sets: ExerciseSetDetail[];
   completed?: boolean;
 }
 
 interface Program {
-  id: string;
+  id: number; // 서버 응답에 맞춰 number로 변경
   name: string;
   description: string;
   exercises: ExerciseSet[];
@@ -38,7 +35,7 @@ interface Program {
 
 interface WorkoutSession {
   id: string;
-  programId: string;
+  programId: number; // 서버 응답에 맞춰 number로 변경
   programName: string;
   startTime: number;
   currentExerciseIndex: number;
@@ -47,136 +44,13 @@ interface WorkoutSession {
   bodyPartTime: number;
   isPaused: boolean;
   isCompleted: boolean;
-  isStarted: boolean; // 새로 추가
+  isStarted: boolean; 
   exercises: ExerciseSet[];
 }
 
-const defaultExercises: Exercise[] = [
-  // 가슴
-  { id: '1', name: '벤치프레스', bodyPart: '가슴' },
-  { id: '2', name: '인클라인 벤치프레스', bodyPart: '가슴' },
-  { id: '3', name: '딥스', bodyPart: '가슴' },
-  { id: '4', name: '푸시업', bodyPart: '가슴' },
-  // 등
-  { id: '5', name: '데드리프트', bodyPart: '등' },
-  { id: '6', name: '풀업', bodyPart: '등' },
-  { id: '7', name: '바벨로우', bodyPart: '등' },
-  { id: '8', name: '랫풀다운', bodyPart: '등' },
-  // 어깨
-  { id: '9', name: '숄더프레스', bodyPart: '어깨' },
-  { id: '10', name: '사이드레터럴레이즈', bodyPart: '어깨' },
-  { id: '11', name: '리어델트플라이', bodyPart: '어깨' },
-  // 팔
-  { id: '12', name: '바이셉컬', bodyPart: '팔' },
-  { id: '13', name: '트라이셉딥스', bodyPart: '팔' },
-  { id: '14', name: '해머컬', bodyPart: '팔' },
-  // 복근
-  { id: '15', name: '크런치', bodyPart: '복근' },
-  { id: '16', name: '플랭크', bodyPart: '복근' },
-  { id: '17', name: '러시안트위스트', bodyPart: '복근' },
-  // 하체
-  { id: '18', name: '스쿼트', bodyPart: '하체' },
-  { id: '19', name: '런지', bodyPart: '하체' },
-  { id: '20', name: '레그프레스', bodyPart: '하체' },
-  // 유산소
-  { id: '21', name: '러닝머신', bodyPart: '유산소' },
-  { id: '22', name: '사이클', bodyPart: '유산소' },
-  { id: '23', name: '로잉머신', bodyPart: '유산소' }
-];
-
-// 샘플 프로그램 데이터
-const samplePrograms: Program[] = [
-  {
-    id: '1',
-    name: '상체 집중 루틴',
-    description: '가슴, 등, 어깨를 중심으로 한 상체 강화 프로그램',
-    exercises: [
-      {
-        id: 'ex1',
-        exerciseId: '1',
-        sets: [
-          { id: 'set1', reps: 12, weight: 60, restTime: 90 },
-          { id: 'set2', reps: 10, weight: 65, restTime: 90 },
-          { id: 'set3', reps: 8, weight: 70, restTime: 120 }
-        ]
-      },
-      {
-        id: 'ex2',
-        exerciseId: '6',
-        sets: [
-          { id: 'set4', reps: 8, restTime: 120 },
-          { id: 'set5', reps: 6, restTime: 120 },
-          { id: 'set6', reps: 5, restTime: 180 }
-        ]
-      },
-      {
-        id: 'ex3',
-        exerciseId: '9',
-        sets: [
-          { id: 'set7', reps: 12, weight: 20, restTime: 60 },
-          { id: 'set8', reps: 10, weight: 22, restTime: 60 },
-          { id: 'set9', reps: 8, weight: 25, restTime: 90 }
-        ]
-      }
-    ],
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: '하체 강화 프로그램',
-    description: '스쿼트와 런지를 중심으로 한 하체 근력 향상',
-    exercises: [
-      {
-        id: 'ex4',
-        exerciseId: '18',
-        sets: [
-          { id: 'set10', reps: 15, weight: 80, restTime: 120 },
-          { id: 'set11', reps: 12, weight: 90, restTime: 120 },
-          { id: 'set12', reps: 10, weight: 100, restTime: 150 }
-        ]
-      },
-      {
-        id: 'ex5',
-        exerciseId: '19',
-        sets: [
-          { id: 'set13', reps: 12, restTime: 90 },
-          { id: 'set14', reps: 10, restTime: 90 },
-          { id: 'set15', reps: 8, restTime: 120 }
-        ]
-      }
-    ],
-    createdAt: '2024-01-10'
-  },
-  {
-    id: '3',
-    name: '전신 운동 루틴',
-    description: '상체와 하체를 골고루 단련하는 전신 운동',
-    exercises: [
-      {
-        id: 'ex6',
-        exerciseId: '5',
-        sets: [
-          { id: 'set16', reps: 8, weight: 100, restTime: 180 },
-          { id: 'set17', reps: 6, weight: 110, restTime: 180 },
-          { id: 'set18', reps: 5, weight: 120, restTime: 240 }
-        ]
-      },
-      {
-        id: 'ex7',
-        exerciseId: '4',
-        sets: [
-          { id: 'set19', reps: 20, restTime: 60 },
-          { id: 'set20', reps: 15, restTime: 60 },
-          { id: 'set21', reps: 12, restTime: 90 }
-        ]
-      }
-    ],
-    createdAt: '2024-01-12'
-  }
-];
-
 export default function WorkoutPage() {
-  const [programs] = useState<Program[]>(samplePrograms);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [allExercises, setAllExercises] = useState<WorkoutResponse[]>([]); // 모든 운동 목록
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [isResting, setIsResting] = useState(false);
   const [restTimeLeft, setRestTimeLeft] = useState(0);
@@ -188,6 +62,45 @@ export default function WorkoutPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 프로그램 및 운동 데이터 불러오기
+  useEffect(() => {
+    const fetchProgramsAndExercises = async () => {
+      try {
+        const fetchedPrograms: ProgramResponse[] = await getWorkoutPrograms();
+        // ProgramResponse를 Program 인터페이스에 맞게 변환
+        const transformedPrograms: Program[] = fetchedPrograms.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          createdAt: p.createdAt,
+          exercises: p.parts.flatMap(part => 
+            part.exercises.map(ex => ({
+              id: `ex-${ex.id}`, // 임시 ID, 실제 사용 안됨
+              exerciseId: ex.workoutId,
+              workoutName: ex.workoutName,
+              workoutPartName: ex.workoutPartName,
+              sets: ex.sets.map(set => ({
+                id: `set-${set.id}`, // 임시 ID, 실제 사용 안됨
+                reps: set.reps,
+                weight: set.weight,
+                restTime: set.restTime,
+                memo: set.memo,
+              })),
+            }))
+          ),
+        }));
+        setPrograms(transformedPrograms);
+
+        const fetchedExercises = await getWorkouts();
+        setAllExercises(fetchedExercises);
+      } catch (error) {
+        console.error("Failed to fetch programs or exercises:", error);
+      }
+    };
+
+    fetchProgramsAndExercises();
+  }, []);
 
   // 오디오 초기화
   useEffect(() => {
@@ -301,12 +214,12 @@ export default function WorkoutPage() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getExerciseName = (exerciseId: string) => {
-    return defaultExercises.find(ex => ex.id === exerciseId)?.name || '';
+  const getExerciseName = (exerciseId: number) => {
+    return allExercises.find(ex => ex.id === exerciseId)?.name || '';
   };
 
-  const getExerciseBodyPart = (exerciseId: string) => {
-    return defaultExercises.find(ex => ex.id === exerciseId)?.bodyPart || '';
+  const getExerciseBodyPart = (exerciseId: number) => {
+    return allExercises.find(ex => ex.id === exerciseId)?.bodyPart || '';
   };
 
   const startWorkout = (program: Program) => {
@@ -321,9 +234,12 @@ export default function WorkoutPage() {
       bodyPartTime: 0,
       isPaused: false,
       isCompleted: false,
-      isStarted: false, // 처음에는 시작되지 않은 상태
+      isStarted: false, 
       exercises: program.exercises.map(ex => ({
-        ...ex,
+        id: ex.id,
+        exerciseId: ex.exerciseId,
+        workoutName: ex.workoutName, // Program에서 가져온 값을 직접 사용
+        workoutPartName: ex.workoutPartName, // Program에서 가져온 값을 직접 사용
         sets: ex.sets.map(set => ({ ...set, completed: false })),
         completed: false
       }))

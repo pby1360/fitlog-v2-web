@@ -567,7 +567,7 @@ export default function ProgramsPage() {
                   취소
                 </Button>
                 <Button 
-                  onClick={() => deletingProgramId && deleteProgram(deletingProgramId)}
+                  onClick={() => deletingProgramId && handleDeleteProgram(deletingProgramId)}
                   className="flex-1 bg-red-600 hover:bg-red-700"
                 >
                   삭제
