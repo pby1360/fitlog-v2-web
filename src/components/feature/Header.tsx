@@ -60,7 +60,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* 로고 */}
           <Link to="/dashboard" className="flex items-center" onClick={closeMobileMenu}>
-            <div className="text-xl font-bold text-blue-600">FitTracker</div>
+            <div className="text-xl font-bold text-blue-600">Fitlog</div>
           </Link>
 
           {/* 데스크톱 네비게이션 메뉴 */}
@@ -117,9 +117,13 @@ export default function Header() {
             <div className="relative" ref={userMenuRef}>
               <button 
                 onClick={toggleUserMenu}
-                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md"
+                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md flex items-center justify-center"
               >
-                <i className="ri-user-line text-xl"></i>
+                {localStorage.getItem('imageUrl') ? (
+                  <img src={localStorage.getItem('imageUrl') || undefined} alt="User Profile" className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <i className="ri-user-line text-xl"></i>
+                )}
               </button>
               
               {isUserMenuOpen && (

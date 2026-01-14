@@ -8,11 +8,13 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const accessToken = searchParams.get('accessToken');
     const refreshToken = searchParams.get('refreshToken');
+    const imageUrl = searchParams.get('imageUrl');
 
     if (accessToken && refreshToken) {
       // Store tokens (e.g., in localStorage)
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('imageUrl', imageUrl || '');
 
       // Redirect to the dashboard or home page
       navigate('/dashboard');

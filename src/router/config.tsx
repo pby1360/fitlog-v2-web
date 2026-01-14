@@ -1,5 +1,5 @@
 
-import { RouteObject } from 'react-router-dom';
+import type { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 
 const HomePage = lazy(() => import('../pages/home/page'));
@@ -9,6 +9,7 @@ const WorkoutPage = lazy(() => import('../pages/workout/page'));
 const HistoryPage = lazy(() => import('../pages/history/page'));
 const ProfilePage = lazy(() => import('../pages/profile/page'));
 const NotFoundPage = lazy(() => import('../pages/NotFound'));
+const AuthCallbackPage = lazy(() => import('../pages/auth/callback/page'));
 
 const routes: RouteObject[] = [
   {
@@ -43,6 +44,10 @@ const routes: RouteObject[] = [
     path: '*',
     element: <NotFoundPage />,
   },
+  {
+    path: '/auth/callback',
+    element: <AuthCallbackPage />,
+  }
 ];
 
 export default routes;
