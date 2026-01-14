@@ -6,6 +6,7 @@ const HomePage = lazy(() => import('../pages/home/page'));
 const DashboardPage = lazy(() => import('../pages/dashboard/page'));
 const ProgramsPage = lazy(() => import('../pages/programs/page'));
 const WorkoutPage = lazy(() => import('../pages/workout/page'));
+const WorkoutSessionPage = lazy(() => import('../pages/workout/session/page'));
 const HistoryPage = lazy(() => import('../pages/history/page'));
 const ProfilePage = lazy(() => import('../pages/profile/page'));
 const NotFoundPage = lazy(() => import('../pages/NotFound'));
@@ -27,6 +28,10 @@ const routes: RouteObject[] = [
   {
     path: '/workout',
     element: <WorkoutPage />,
+  },
+  {
+    path: '/workout/session',
+    element: <WorkoutSessionPage />,
   },
   {
     path: '/history',

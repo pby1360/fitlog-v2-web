@@ -180,3 +180,42 @@ export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
 export const getMyInfo = async (): Promise<any> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
 };
+
+// Workout Session Types
+interface SessionSetResponse {
+    id: number;
+    setNumber: number;
+    weight: number;
+    reps: number;
+    restTime: number;
+    memo: string;
+    completed: boolean;
+}
+
+interface SessionExerciseResponse {
+    id: number;
+    workoutId: number;
+    workoutName: string;
+    order: number;
+    sets: SessionSetResponse[];
+}
+
+export interface WorkoutSessionResponse {
+    id: number;
+    workoutProgramId: number;
+    workoutProgramName: string;
+    startTime: string; // LocalDateTime is serialized as string
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    exercises: SessionExerciseResponse[];
+}
+
+export const startWorkoutSession = async (workoutProgramId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions`, {
+        method: 'POST',
+        body: JSON.stringify({ workoutProgramId }),
+    });
+};
+
+export const getLatestWorkoutSession = async (): Promise<WorkoutSessionResponse | null> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/latest`);
+};
