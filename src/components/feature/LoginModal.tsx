@@ -12,7 +12,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const BASE_AUTH_URL = 'http://localhost:8080/oauth2/authorization'
+  const BASE_AUTH_URL = import.meta.env.VITE_API_BASE_URL + '/oauth2/authorization';
 
   if (!isOpen) return null;
 
