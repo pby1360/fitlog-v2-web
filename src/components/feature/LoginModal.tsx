@@ -13,7 +13,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
   const [isLoading, setIsLoading] = useState(false);
 
   const BASE_AUTH_URL = import.meta.env.VITE_API_BASE_URL + '/oauth2/authorization';
-
+  console.log('BASE_AUTH_URL:', BASE_AUTH_URL);
   if (!isOpen) return null;
 
   const handleSocialLogin = async (provider: string) => {
