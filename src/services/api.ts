@@ -190,6 +190,10 @@ interface SessionSetResponse {
     restTime: number;
     memo: string;
     completed: boolean;
+    actualWeight?: number;
+    actualReps?: number;
+    actualMemo?: string;
+    completedAt?: string;
 }
 
 interface SessionExerciseResponse {
@@ -205,7 +209,7 @@ export interface WorkoutSessionResponse {
     workoutProgramId: number;
     workoutProgramName: string;
     startTime: string; // LocalDateTime is serialized as string
-    status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
     exercises: SessionExerciseResponse[];
 }
 
@@ -218,4 +222,46 @@ export const startWorkoutSession = async (workoutProgramId: number): Promise<Wor
 
 export const getLatestWorkoutSession = async (): Promise<WorkoutSessionResponse | null> => {
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions/latest`);
+};
+
+export const completeWorkoutSessionSet = async (
+    sessionId: number,
+    workoutSessionExerciseId: number,
+    workoutSessionSetId: number,
+    actualWeight: number | undefined,
+    actualReps: number | undefined,
+    memo: string | undefined
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/complete-set`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            workoutSessionExerciseId,
+            workoutSessionSetId,
+            actualWeight,
+            actualReps,
+            memo,
+        }),
+    });
+};
+
+export const pauseWorkoutSession = async (sessionId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/pause`, {
+        method: 'PATCH',
+    });
+};
+
+export const resumeWorkoutSession = async (sessionId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/resume`, {
+        method: 'PATCH',
+    });
+};
+
+export const endWorkoutSession = async (
+    sessionId: number,
+    status: 'COMPLETED' | 'CANCELLED'
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/end`, {
+        method: 'PATCH',
+        body: JSON.stringify({ endTime: new Date().toISOString(), status }),
+    });
 };

@@ -108,6 +108,7 @@ export default function ProgramsPage() {
     setEditingProgram(program);
     setProgramName(program.name);
     setProgramDescription(program.description);
+    setSelectedBodyParts(program.parts.map(part => part.workoutPartName));
 
     // 서버에서 받은 ProgramResponse 구조를 CurrentExerciseSet[]으로 변환
     // 이 때, exerciseId는 ProgramExerciseResponse의 workoutId를 사용하고,
@@ -262,22 +263,33 @@ export default function ProgramsPage() {
   };
 
   const addSetToExercise = (exerciseSetId: string) => {
-    setProgramExercises(programExercises.map(pe => 
-      pe.id === exerciseSetId 
-        ? {
-            ...pe,
-            sets: [
-              ...pe.sets,
-              {
-                id: Date.now().toString() + '_' + (pe.sets.length + 1),
-                reps: 10,
-                restTime: 60
-              }
-            ]
+    setProgramExercises(programExercises.map(pe => {
+      // 1. 타겟 운동이 아니면 그대로 반환
+      if (pe.id !== exerciseSetId) return pe;
+
+      // 2. 이전 세트 데이터 가져오기 (배열이 비어있을 경우 대비)
+      const lastSet = pe.sets.length > 0 ? pe.sets[pe.sets.length - 1] : null;
+
+      // 3. 값 할당 (이전 세트가 있으면 그 값을, 없으면 기본값 사용)
+      const nextReps = lastSet ? lastSet.reps : 10; 
+      const nextWeight = lastSet ? lastSet.weight : undefined; 
+      const nextRestTime = lastSet ? lastSet.restTime : 60;
+
+      return {
+        ...pe,
+        sets: [
+          ...pe.sets,
+          {
+            // id 생성 로직은 유지 (uuid 라이브러리 사용 권장하나 현재 방식도 무방)
+            id: Date.now().toString() + '_' + (pe.sets.length + 1), 
+            reps: nextReps,      // 이전 세트 값 적용
+            weight: nextWeight,  // 이전 세트 값 적용
+            restTime: nextRestTime // 이전 세트 값 적용
           }
-        : pe
-    ));
-  };
+        ]
+      };
+  }));
+};
 
   const removeSetFromExercise = (exerciseSetId: string, setId: string) => {
     setProgramExercises(programExercises.map(pe => 
