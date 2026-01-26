@@ -56,6 +56,7 @@ interface Program {
 export default function ProgramsPage() {
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -397,6 +398,7 @@ export default function ProgramsPage() {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      setIsLoading(true);
       try {
         const [fetchedBodyParts, fetchedExercises, fetchedPrograms] = await Promise.all([
           getWorkoutParts(),
@@ -409,6 +411,8 @@ export default function ProgramsPage() {
       } catch (error) {
         console.error("초기 데이터를 불러오는 데 실패했습니다:", error);
         // 사용자에게 에러 메시지를 표시하는 로직 추가
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -489,8 +493,11 @@ export default function ProgramsPage() {
             </div>
           </div>
 
-          {/* 프로그램 목록 */}
-          {programs.length === 0 ? (
+          {isLoading ? (
+            <div className="min-h-[200px] flex items-center justify-center">
+              <div className="w-10 h-10 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+            </div>
+          ) : programs.length === 0 ? (
             <Card className="p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="ri-fitness-line text-2xl text-gray-400"></i>

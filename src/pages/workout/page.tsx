@@ -29,10 +29,12 @@ interface Program {
 
 export default function WorkoutPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const initializePage = async () => {
+      setIsLoading(true);
       try {
         const activeSession = await getLatestWorkoutSession();
         if (activeSession) {
@@ -69,6 +71,8 @@ export default function WorkoutPage() {
         setPrograms(transformedPrograms);
       } catch (error) {
         console.error("Failed to initialize workout page:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -101,7 +105,11 @@ export default function WorkoutPage() {
           </div>
         </div>
 
-        {programs.length === 0 ? (
+        {isLoading ? (
+          <div className="min-h-[200px] flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+          </div>
+        ) : programs.length === 0 ? (
           <Card className="p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-fitness-line text-2xl text-gray-400"></i>

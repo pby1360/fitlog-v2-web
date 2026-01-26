@@ -61,7 +61,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
             <Button
               onClick={() => handleSocialLogin('google')}
               disabled={isLoading}
-              className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+              className="w-full bg-white border border-gray-300 text-black hover:bg-gray-50 flex items-center justify-center"
             >
               <i className="ri-google-fill text-red-500 mr-3 text-lg"></i>
               Google로 {isSignUp ? '가입하기' : '로그인'}
@@ -70,7 +70,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
             <Button
               onClick={() => handleSocialLogin('kakao')}
               disabled={isLoading}
-              className="w-full bg-yellow-400 text-gray-900 hover:bg-yellow-500 flex items-center justify-center"
+              className="w-full bg-yellow-400 text-black hover:bg-yellow-500 flex items-center justify-center"
             >
               <i className="ri-kakao-talk-fill mr-3 text-lg"></i>
               카카오로 {isSignUp ? '가입하기' : '로그인'}

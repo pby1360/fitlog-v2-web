@@ -59,6 +59,7 @@ export default function WorkoutSessionPage() {
   const [showStopModal, setShowStopModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isCompletingSet, setIsCompletingSet] = useState(false);
 
   // 경과 시간 상태 추가
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
@@ -94,11 +95,11 @@ export default function WorkoutSessionPage() {
     const currentBodyPartName = currentExercise.workoutPartName;
     const firstIndexOfBodyPart = exercises.findIndex(ex => ex.workoutPartName === currentBodyPartName);
     if (firstIndexOfBodyPart > 0) {
-       const prevExercise = exercises[firstIndexOfBodyPart - 1];
-       const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
-       if (lastCompletedSet?.completedAt) {
+      const prevExercise = exercises[firstIndexOfBodyPart - 1];
+      const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
+      if (lastCompletedSet?.completedAt) {
         bodyPartStartTime = lastCompletedSet.completedAt;
-       }
+      }
     }
 
     // 타이머 설정
@@ -322,6 +323,8 @@ export default function WorkoutSessionPage() {
     const currentSet = currentExercise.sets[workoutSession.currentSetIndex];
     if (!currentSet) return;
 
+    setIsCompletingSet(true); // API 호출 시작 시 로딩 상태로 설정
+
     try {
       const updatedSession = await completeWorkoutSessionSet(
         workoutSession.id,
@@ -342,6 +345,8 @@ export default function WorkoutSessionPage() {
       }
     } catch (error) {
       console.error("Failed to complete set:", error);
+    } finally {
+      setIsCompletingSet(false); // API 호출 완료 시 로딩 상태 해제
     }
   };
 
@@ -502,14 +507,14 @@ export default function WorkoutSessionPage() {
                   </Button>
                 </>
               )}
-              <Button 
+              {/* <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowResetModal(true)}
               >
                 <i className="ri-refresh-line mr-1"></i>
                 초기화
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>
@@ -529,19 +534,19 @@ export default function WorkoutSessionPage() {
             </div>
             <div className="text-sm text-gray-600">현재 부위 시간</div>
           </Card>
-          
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
-              {progress}%
-            </div>
-            <div className="text-sm text-gray-600">진행률</div>
-          </Card>
-          
+                    
           <Card className="p-4 text-center">
             <div className="text-lg font-bold text-orange-600 mb-1">
               {currentBodyPart}
             </div>
             <div className="text-sm text-gray-600">운동 부위</div>
+          </Card>
+
+          <Card className="p-4 text-center">
+            <div className="text-lg font-bold text-blue-600 mb-1">
+              {currentExerciseName}
+            </div>
+            <div className="text-sm text-gray-600">현재 운동</div>
           </Card>
         </div>
 
@@ -601,7 +606,13 @@ export default function WorkoutSessionPage() {
               </div>
               <div className="text-center p-4 bg-indigo-50 rounded-lg">
                 <div className="text-2xl font-bold text-indigo-600 mb-1">{formatTime(elapsedExerciseTime)}</div>
-                <div className="text-sm text-indigo-700">운동 경과 시간</div>
+                <div className="text-sm text-indigo-700">운동 시간</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  {workoutSession.currentSetIndex + 1} / {currentExercise.sets.length}
+                </div>
+                <div className="text-sm text-green-700">세트</div>
               </div>
             </div>
 
@@ -638,9 +649,19 @@ export default function WorkoutSessionPage() {
                     completeSet(actualReps, actualWeight, actualMemo);
                   }}
                   className="flex-1"
+                  disabled={isCompletingSet} // 로딩 중일 때 버튼 비활성화
                 >
-                  <i className="ri-check-line mr-2"></i>
-                  세트 완료
+                  {isCompletingSet ? (
+                    <div className="flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      처리중...
+                    </div>
+                  ) : (
+                    <>
+                      <i className="ri-check-line mr-2"></i>
+                      세트 완료
+                    </>
+                  )}
                 </Button>
               )}
             </div>
