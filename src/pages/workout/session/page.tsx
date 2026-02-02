@@ -72,7 +72,7 @@ export default function WorkoutSessionPage() {
 
   // 모든 타이머 로직을 통합 관리하는 useEffect
   useEffect(() => {
-    if (!workoutSession || workoutSession.status !== 'IN_PROGRESS' || isResting) {
+    if (!workoutSession || workoutSession.status !== 'IN_PROGRESS') {
       return () => {
         if (timerRef.current) clearInterval(timerRef.current);
       };
@@ -113,7 +113,7 @@ export default function WorkoutSessionPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [workoutSession?.status, workoutSession?.currentExerciseIndex, isResting]);
+  }, [workoutSession?.status, workoutSession?.currentExerciseIndex]);
   
 
   // API 응답을 UI 상태로 변환하는 헬퍼 함수
@@ -624,12 +624,16 @@ export default function WorkoutSessionPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">실제 횟수</label>
                     <input type="number" min="1" defaultValue={currentSet.reps} id="actual-reps" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
-                  {currentSet.weight != null && (
+                  {/* {currentSet.weight != null && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">실제 무게(kg)</label>
                       <input type="number" min="0" step="0.5" defaultValue={currentSet.weight} id="actual-weight" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
-                  )}
+                  )} */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">실제 무게(kg)</label>
+                    <input type="number" min="0" step="0.5" defaultValue={currentSet.weight || 0} id="actual-weight" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">메모</label>
@@ -672,7 +676,15 @@ export default function WorkoutSessionPage() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">운동 목록</h3>
           <div className="space-y-3">
-            {workoutSession.exercises.map((exercise, exerciseIndex) => (
+            {[...workoutSession.exercises]
+              .map((ex, i) => ({ ex, i }))
+              .sort((a, b) => {
+                if (a.i === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS') return -1;
+                if (b.i === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS') return 1;
+                // 진행 중이 아닌 경우 원래 순서 유지 (이미 완료된 것들끼리는 원래 순서대로)
+                return 0; 
+              })
+              .map(({ ex: exercise, i: exerciseIndex }) => (
               <div 
                 key={exercise.id} 
                 className={`p-4 rounded-lg border-2 transition-colors ${
@@ -703,8 +715,8 @@ export default function WorkoutSessionPage() {
                       <div className="font-medium">세트 {setIndex + 1}</div>
                       <div className="text-gray-600">
                         {set.completed && set.actualReps !== undefined && set.actualReps !== null ? set.actualReps : set.reps}회
-                        {((set.weight !== undefined && set.weight !== null) || (set.actualWeight !== undefined && set.actualWeight !== null)) && 
-                          ` × ${set.completed && set.actualWeight !== undefined && set.actualWeight !== null ? set.actualWeight : set.weight}kg`}
+                        {((set.weight !== undefined && set.weight !== null) || (set.actualWeight !== undefined && set.actualWeight !== null && set.actualWeight !== 0)) && 
+                          ` × ${set.completed && set.actualWeight !== undefined && set.actualWeight !== null && set.actualWeight !== 0 ? set.actualWeight : set.weight}kg`}
                       </div>
                     </div>
                   ))}
