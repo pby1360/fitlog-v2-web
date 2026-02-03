@@ -1,6 +1,6 @@
 import { redirectToHome } from '../utils/navigationService';
 
-const API_BASE_URL = 'http://localhost:8080/api'; // 백엔드 API 기본 URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 API 기본 URL
 
 interface WorkoutPartResponse {
   id: number;
@@ -179,4 +179,89 @@ export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
 
 export const getMyInfo = async (): Promise<any> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
+};
+
+// Workout Session Types
+interface SessionSetResponse {
+    id: number;
+    setNumber: number;
+    weight: number;
+    reps: number;
+    restTime: number;
+    memo: string;
+    completed: boolean;
+    actualWeight?: number;
+    actualReps?: number;
+    actualMemo?: string;
+    completedAt?: string;
+}
+
+interface SessionExerciseResponse {
+    id: number;
+    workoutId: number;
+    workoutName: string;
+    order: number;
+    sets: SessionSetResponse[];
+}
+
+export interface WorkoutSessionResponse {
+    id: number;
+    workoutProgramId: number;
+    workoutProgramName: string;
+    startTime: string; // LocalDateTime is serialized as string
+    status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+    exercises: SessionExerciseResponse[];
+}
+
+export const startWorkoutSession = async (workoutProgramId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions`, {
+        method: 'POST',
+        body: JSON.stringify({ workoutProgramId }),
+    });
+};
+
+export const getLatestWorkoutSession = async (): Promise<WorkoutSessionResponse | null> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/latest`);
+};
+
+export const completeWorkoutSessionSet = async (
+    sessionId: number,
+    workoutSessionExerciseId: number,
+    workoutSessionSetId: number,
+    actualWeight: number | undefined,
+    actualReps: number | undefined,
+    memo: string | undefined
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/complete-set`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+            workoutSessionExerciseId,
+            workoutSessionSetId,
+            actualWeight,
+            actualReps,
+            memo,
+        }),
+    });
+};
+
+export const pauseWorkoutSession = async (sessionId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/pause`, {
+        method: 'PATCH',
+    });
+};
+
+export const resumeWorkoutSession = async (sessionId: number): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/resume`, {
+        method: 'PATCH',
+    });
+};
+
+export const endWorkoutSession = async (
+    sessionId: number,
+    status: 'COMPLETED' | 'CANCELLED'
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/end`, {
+        method: 'PATCH',
+        body: JSON.stringify({ endTime: new Date().toISOString(), status }),
+    });
 };
