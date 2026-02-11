@@ -48,6 +48,8 @@ interface WorkoutSession {
   bodyPartTime: number;
   status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
   exercises: ExerciseSet[];
+  totalPausedSeconds: number;
+  lastPausedAt?: number;
 }
 
 export default function WorkoutSessionPage() {
@@ -105,9 +107,39 @@ export default function WorkoutSessionPage() {
     // 타이머 설정
     timerRef.current = setInterval(() => {
       const now = Date.now();
-      setWorkoutSession(prev => prev ? { ...prev, totalTime: Math.floor((now - startTime) / 1000) } : null);
-      setElapsedExerciseTime(Math.floor((now - exerciseStartTime) / 1000));
-      setElapsedBodyPartTime(Math.floor((now - bodyPartStartTime) / 1000));
+      const currentTotalPausedSeconds = workoutSession.totalPausedSeconds || 0;
+      const effectiveSessionStartTimeForTotal = startTime + (currentTotalPausedSeconds * 1000);
+
+      setWorkoutSession(prev => prev ? {
+        ...prev,
+        totalTime: Math.max(0, Math.floor((now - effectiveSessionStartTimeForTotal) / 1000))
+      } : null);
+
+      const currentExercise = exercises[currentExerciseIndex];
+
+      // 시작 시간 계산
+      let exerciseStartTime = startTime;
+      if (currentExerciseIndex > 0) {
+        const prevExercise = exercises[currentExerciseIndex - 1];
+        const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
+        if (lastCompletedSet?.completedAt) {
+          exerciseStartTime = lastCompletedSet.completedAt;
+        }
+      }
+
+      let bodyPartStartTime = startTime;
+      const currentBodyPartName = currentExercise.workoutPartName;
+      const firstIndexOfBodyPart = exercises.findIndex(ex => ex.workoutPartName === currentBodyPartName);
+      if (firstIndexOfBodyPart > 0) {
+        const prevExercise = exercises[firstIndexOfBodyPart - 1];
+        const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
+        if (lastCompletedSet?.completedAt) {
+          bodyPartStartTime = lastCompletedSet.completedAt;
+        }
+      }
+
+      setElapsedExerciseTime(Math.max(0, Math.floor((now - (exerciseStartTime + currentTotalPausedSeconds * 1000)) / 1000)));
+      setElapsedBodyPartTime(Math.max(0, Math.floor((now - (bodyPartStartTime + currentTotalPausedSeconds * 1000)) / 1000)));
     }, 1000);
 
     return () => {
@@ -152,8 +184,8 @@ export default function WorkoutSessionPage() {
       startTime: new Date(session.startTime).getTime(),
       currentExerciseIndex: exerciseIndex,
       currentSetIndex: setIndex,
-      totalTime: Math.floor((Date.now() - new Date(session.startTime).getTime()) / 1000),
-      bodyPartTime: 0,
+      totalTime: Math.max(0, Math.floor((Date.now() - (new Date(session.startTime).getTime() + (session.totalPausedSeconds || 0) * 1000)) / 1000)), // Apply totalPausedSeconds here
+      bodyPartTime: 0, // This will be adjusted in useEffect
       status: session.status,
       exercises: session.exercises.map(ex => ({
         id: ex.id,
@@ -174,6 +206,8 @@ export default function WorkoutSessionPage() {
         })),
         completed: ex.sets.every(s => s.completed),
       })),
+      totalPausedSeconds: session.totalPausedSeconds || 0,
+      lastPausedAt: session.lastPausedAt ? new Date(session.lastPausedAt).getTime() : undefined,
     };
   };
 
