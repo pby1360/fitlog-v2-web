@@ -265,3 +265,45 @@ export const endWorkoutSession = async (
         body: JSON.stringify({ endTime: new Date().toISOString(), status }),
     });
 };
+
+// Workout Log Types
+export interface WorkoutLogSetResponse {
+    id: number;
+    targetReps: number;
+    actualReps: number;
+    targetWeight?: number;
+    actualWeight?: number;
+    restTime: number;
+    memo?: string;
+}
+
+export interface WorkoutLogExerciseResponse {
+    id: number;
+    name: string;
+    bodyPart: string;
+    exerciseTime: number;
+    sets: WorkoutLogSetResponse[];
+}
+
+export interface WorkoutLogResponse {
+    id: number;
+    programName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    totalTime: number;
+    completedExercises: number;
+    totalExercises: number;
+    completedSets: number;
+    totalSets: number;
+    bodyParts: string[];
+    exercises: WorkoutLogExerciseResponse[];
+}
+
+export const getWorkoutLogs = async (): Promise<WorkoutLogResponse[]> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-logs`);
+};
+
+export const getWorkoutLog = async (id: number): Promise<WorkoutLogResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-logs/${id}`);
+};
