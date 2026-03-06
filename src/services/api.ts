@@ -211,12 +211,33 @@ export interface WorkoutSessionResponse {
     startTime: string; // LocalDateTime is serialized as string
     status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
     exercises: SessionExerciseResponse[];
+    totalPausedSeconds?: number;
+    lastPausedAt?: string;
 }
 
-export const startWorkoutSession = async (workoutProgramId: number): Promise<WorkoutSessionResponse> => {
+export interface CustomExerciseDto {
+    workoutId: number;
+    order: number;
+    sets: {
+        setNumber: number;
+        weight?: number;
+        reps: number;
+        restTime: number;
+        memo?: string;
+    }[];
+}
+
+export const startWorkoutSession = async (
+    workoutProgramId: number,
+    customExercises?: CustomExerciseDto[]
+): Promise<WorkoutSessionResponse> => {
+    const body: Record<string, unknown> = { workoutProgramId };
+    if (customExercises) {
+        body.customExercises = customExercises;
+    }
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions`, {
         method: 'POST',
-        body: JSON.stringify({ workoutProgramId }),
+        body: JSON.stringify(body),
     });
 };
 

@@ -60,6 +60,7 @@ export default function WorkoutSessionPage() {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showStopModal, setShowStopModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
 
@@ -406,6 +407,33 @@ export default function WorkoutSessionPage() {
     }
   };
   
+  const skipExercise = () => {
+    if (!workoutSession) return;
+    const { currentExerciseIndex, exercises } = workoutSession;
+
+    // 다음 미완료 운동 찾기
+    const nextIncompleteIndex = exercises.findIndex(
+      (ex, i) => i > currentExerciseIndex && !ex.completed
+    );
+
+    if (nextIncompleteIndex === -1) {
+      // 더 이상 남은 운동이 없음
+      setShowSkipModal(false);
+      setShowCompleteModal(true);
+      return;
+    }
+
+    setIsResting(false);
+    setRestTimeLeft(0);
+    setShowSkipModal(false);
+
+    setWorkoutSession(prev => prev ? {
+      ...prev,
+      currentExerciseIndex: nextIncompleteIndex,
+      currentSetIndex: 0,
+    } : null);
+  };
+
   // 헬퍼 함수
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -606,16 +634,26 @@ export default function WorkoutSessionPage() {
                 {formatTime(restTimeLeft)}
               </div>
               <div className="text-lg text-orange-700 mb-2">휴식 시간</div>
-              <Button 
-                onClick={() => {
-                  setIsResting(false);
-                  setRestTimeLeft(0);
-                }}
-                variant="outline"
-                className="border-orange-300 text-orange-700 hover:bg-orange-100"
-              >
-                휴식 건너뛰기
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  onClick={() => {
+                    setIsResting(false);
+                    setRestTimeLeft(0);
+                  }}
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                >
+                  휴식 건너뛰기
+                </Button>
+                <Button
+                  onClick={() => setShowSkipModal(true)}
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-100"
+                >
+                  <i className="ri-skip-forward-line mr-1"></i>
+                  운동 건너뛰기
+                </Button>
+              </div>
             </div>
           </Card>
         )}
@@ -678,29 +716,39 @@ export default function WorkoutSessionPage() {
 
             <div className="flex flex-col sm:flex-row gap-3">
               {!isResting && (
-                <Button 
-                  onClick={() => {
-                    const actualReps = parseInt((document.getElementById('actual-reps') as HTMLInputElement)?.value || currentSet.reps.toString());
-                    const actualWeightInput = document.getElementById('actual-weight') as HTMLInputElement;
-                    const actualWeight = actualWeightInput ? parseFloat(actualWeightInput.value) : undefined;
-                    const actualMemo = (document.getElementById('actual-memo') as HTMLInputElement)?.value;
-                    completeSet(actualReps, actualWeight, actualMemo);
-                  }}
-                  className="flex-1"
-                  disabled={isCompletingSet} // 로딩 중일 때 버튼 비활성화
-                >
-                  {isCompletingSet ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      처리중...
-                    </div>
-                  ) : (
-                    <>
-                      <i className="ri-check-line mr-2"></i>
-                      세트 완료
-                    </>
-                  )}
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      const actualReps = parseInt((document.getElementById('actual-reps') as HTMLInputElement)?.value || currentSet.reps.toString());
+                      const actualWeightInput = document.getElementById('actual-weight') as HTMLInputElement;
+                      const actualWeight = actualWeightInput ? parseFloat(actualWeightInput.value) : undefined;
+                      const actualMemo = (document.getElementById('actual-memo') as HTMLInputElement)?.value;
+                      completeSet(actualReps, actualWeight, actualMemo);
+                    }}
+                    className="flex-1"
+                    disabled={isCompletingSet}
+                  >
+                    {isCompletingSet ? (
+                      <div className="flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        처리중...
+                      </div>
+                    ) : (
+                      <>
+                        <i className="ri-check-line mr-2"></i>
+                        세트 완료
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => setShowSkipModal(true)}
+                    variant="outline"
+                    className="text-orange-600 hover:bg-orange-50"
+                  >
+                    <i className="ri-skip-forward-line mr-2"></i>
+                    건너뛰기
+                  </Button>
+                </>
               )}
             </div>
           </Card>
@@ -791,6 +839,21 @@ export default function WorkoutSessionPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowResetModal(false)} className="flex-1">취소</Button>
               <Button onClick={resetWorkout} className="flex-1">초기화</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSkipModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">운동 건너뛰기</h3>
+            <p className="text-gray-600 mb-6">
+              현재 운동({currentExerciseName})을 건너뛰고 다음 운동으로 이동하시겠습니까?
+              남은 세트는 미완료 상태로 유지됩니다.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowSkipModal(false)} className="flex-1">취소</Button>
+              <Button onClick={skipExercise} className="flex-1 bg-orange-600 hover:bg-orange-700">건너뛰기</Button>
             </div>
           </div>
         </div>
