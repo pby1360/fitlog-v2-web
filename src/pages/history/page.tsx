@@ -42,14 +42,6 @@ export default function HistoryPage() {
     }
 
     const numericId = Number(id);
-    const localRecord = workoutRecords.find(r => r.id === numericId);
-    if (localRecord) {
-      setSelectedRecord(localRecord);
-      setView('detail');
-      return;
-    }
-
-    // 목록에 없으면 개별 조회
     const fetchDetail = async () => {
       setLoading(true);
       setError(null);
@@ -64,7 +56,7 @@ export default function HistoryPage() {
       }
     };
     fetchDetail();
-  }, [id, workoutRecords, navigate]);
+  }, [id, navigate]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
