@@ -200,7 +200,9 @@ interface SessionExerciseResponse {
     id: number;
     workoutId: number;
     workoutName: string;
+    bodyPart?: string;
     order: number;
+    skipped: boolean;
     sets: SessionSetResponse[];
 }
 
@@ -211,12 +213,33 @@ export interface WorkoutSessionResponse {
     startTime: string; // LocalDateTime is serialized as string
     status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
     exercises: SessionExerciseResponse[];
+    totalPausedSeconds?: number;
+    lastPausedAt?: string;
 }
 
-export const startWorkoutSession = async (workoutProgramId: number): Promise<WorkoutSessionResponse> => {
+export interface CustomExerciseDto {
+    workoutId: number;
+    order: number;
+    sets: {
+        setNumber: number;
+        weight?: number;
+        reps: number;
+        restTime: number;
+        memo?: string;
+    }[];
+}
+
+export const startWorkoutSession = async (
+    workoutProgramId: number,
+    customExercises?: CustomExerciseDto[]
+): Promise<WorkoutSessionResponse> => {
+    const body: Record<string, unknown> = { workoutProgramId };
+    if (customExercises) {
+        body.customExercises = customExercises;
+    }
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions`, {
         method: 'POST',
-        body: JSON.stringify({ workoutProgramId }),
+        body: JSON.stringify(body),
     });
 };
 
@@ -256,6 +279,17 @@ export const resumeWorkoutSession = async (sessionId: number): Promise<WorkoutSe
     });
 };
 
+export const skipWorkoutSessionExercise = async (
+    sessionId: number,
+    workoutSessionExerciseId: number,
+    skipped: boolean
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/skip-exercise`, {
+        method: 'PATCH',
+        body: JSON.stringify({ workoutSessionExerciseId, skipped }),
+    });
+};
+
 export const endWorkoutSession = async (
     sessionId: number,
     status: 'COMPLETED' | 'CANCELLED'
@@ -275,6 +309,7 @@ export interface WorkoutLogSetResponse {
     actualWeight?: number;
     restTime: number;
     memo?: string;
+    completed: boolean;
 }
 
 export interface WorkoutLogExerciseResponse {
@@ -323,6 +358,7 @@ interface ServerSetResponse {
     actualReps?: number;
     actualWeight?: number;
     actualMemo?: string;
+    completedAt?: string;
 }
 
 interface ServerExerciseResponse {
@@ -381,11 +417,17 @@ const mapDetailToLog = (r: ServerSessionDetail): WorkoutLogResponse => {
         completedSets: allSets.filter(s => s.completed).length,
         totalSets: allSets.length,
         bodyParts: [...new Set(exercises.map(e => e.bodyPart ?? '').filter(Boolean))],
-        exercises: exercises.map(e => ({
+        exercises: exercises.map(e => {
+            const completedSets = (e.sets ?? []).filter(s => s.completed && s.completedAt);
+            const exerciseTime = completedSets.length >= 2
+                ? Math.round((new Date(completedSets[completedSets.length - 1].completedAt!).getTime()
+                    - new Date(completedSets[0].completedAt!).getTime()) / 1000)
+                : 0;
+            return {
             id: e.id,
             name: e.workoutName ?? '',
             bodyPart: e.bodyPart ?? '',
-            exerciseTime: 0,
+            exerciseTime,
             sets: (e.sets ?? []).map(s => ({
                 id: s.id,
                 targetReps: s.reps ?? 0,
@@ -394,19 +436,57 @@ const mapDetailToLog = (r: ServerSessionDetail): WorkoutLogResponse => {
                 actualWeight: s.actualWeight,
                 restTime: s.restTime ?? 0,
                 memo: s.actualMemo ?? '',
+                completed: s.completed,
             })),
-        })),
+            };
+        }),
     };
 };
 
-export const getWorkoutLogs = async (): Promise<WorkoutLogResponse[]> => {
-    const result = await fetchWithAuth(`${API_BASE_URL}/workout-sessions/logs`);
-    let summaries: ServerLogSummary[];
-    if (Array.isArray(result)) summaries = result;
-    else if (result?.content && Array.isArray(result.content)) summaries = result.content;
-    else if (result?.data && Array.isArray(result.data)) summaries = result.data;
-    else return [];
-    return summaries.map(mapSummaryToLog);
+export interface WorkoutLogPage {
+    logs: WorkoutLogResponse[];
+    currentPage: number;
+    totalPages: number;
+    totalElements: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+    totalDurationSeconds: number;
+    totalCompletedSets: number;
+    totalSets: number;
+    averageCompletionRate: number;
+}
+
+export const getWorkoutLogs = async (page = 0, size = 10): Promise<WorkoutLogPage> => {
+    const result = await fetchWithAuth(
+        `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`
+    );
+    if (result?.content && Array.isArray(result.content)) {
+        return {
+            logs: (result.content as ServerLogSummary[]).map(mapSummaryToLog),
+            currentPage: result.currentPage ?? result.number ?? 0,
+            totalPages: result.totalPages ?? 1,
+            totalElements: result.totalElements ?? result.content.length,
+            hasNext: result.last === false,
+            hasPrev: result.first === false,
+            totalDurationSeconds: result.totalDurationSeconds ?? 0,
+            totalCompletedSets: result.totalCompletedSets ?? 0,
+            totalSets: result.totalSets ?? 0,
+            averageCompletionRate: result.averageCompletionRate ?? 0,
+        };
+    }
+    const arr: ServerLogSummary[] = Array.isArray(result) ? result : [];
+    return {
+        logs: arr.map(mapSummaryToLog),
+        currentPage: 0,
+        totalPages: 1,
+        totalElements: arr.length,
+        hasNext: false,
+        hasPrev: false,
+        totalDurationSeconds: 0,
+        totalCompletedSets: 0,
+        totalSets: 0,
+        averageCompletionRate: 0,
+    };
 };
 
 export const getWorkoutLog = async (id: number): Promise<WorkoutLogResponse> => {

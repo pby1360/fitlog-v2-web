@@ -3,12 +3,20 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
-import { getWorkoutLogs, getWorkoutLog, WorkoutLogResponse } from '../../services/api';
+import { getWorkoutLogs, getWorkoutLog, WorkoutLogResponse, WorkoutLogPage } from '../../services/api';
 
 type WorkoutRecord = WorkoutLogResponse;
 
 export default function HistoryPage() {
   const [workoutRecords, setWorkoutRecords] = useState<WorkoutRecord[]>([]);
+  const [calendarRecords, setCalendarRecords] = useState<WorkoutRecord[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalDurationSeconds, setTotalDurationSeconds] = useState(0);
+  const [totalCompletedSets, setTotalCompletedSets] = useState(0);
+  const [totalSets, setTotalSets] = useState(0);
+  const [averageCompletionRate, setAverageCompletionRate] = useState(0);
   const [selectedRecord, setSelectedRecord] = useState<WorkoutRecord | null>(null);
   const [view, setView] = useState<'list' | 'calendar' | 'detail'>('list');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -17,20 +25,38 @@ export default function HistoryPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const fetchListPage = async (page: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result: WorkoutLogPage = await getWorkoutLogs(page);
+      setWorkoutRecords(result.logs);
+      setCurrentPage(result.currentPage);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
+      setTotalDurationSeconds(result.totalDurationSeconds);
+      setTotalCompletedSets(result.totalCompletedSets);
+      setTotalSets(result.totalSets);
+      setAverageCompletionRate(result.averageCompletionRate);
+    } catch (err) {
+      setError('운동 기록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCalendarRecords = async () => {
+    try {
+      // 캘린더는 최근 365개까지 로드
+      const result: WorkoutLogPage = await getWorkoutLogs(0, 365);
+      setCalendarRecords(result.logs);
+    } catch {
+      // 캘린더 로딩 실패는 조용히 처리
+    }
+  };
+
   useEffect(() => {
-    const fetchLogs = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const logs = await getWorkoutLogs();
-        setWorkoutRecords(logs);
-      } catch (err) {
-        setError('운동 기록을 불러오는데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLogs();
+    fetchListPage(0);
   }, []);
 
   // URL 파라미터에 따라 상세 화면 표시
@@ -115,7 +141,7 @@ export default function HistoryPage() {
   };
 
   const getWorkoutForDate = (date: string) => {
-    return workoutRecords.filter(record => record.date === date);
+    return calendarRecords.filter(record => record.date === date);
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -206,7 +232,7 @@ export default function HistoryPage() {
                 <Button
                   variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setView('calendar')}
+                  onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
                   className="whitespace-nowrap"
                 >
                   <i className="ri-calendar-line mr-2"></i>
@@ -323,7 +349,7 @@ export default function HistoryPage() {
                 <Button
                   variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setView('calendar')}
+                  onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
                   className="whitespace-nowrap"
                 >
                   <i className="ri-calendar-line mr-2"></i>
@@ -337,7 +363,7 @@ export default function HistoryPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-blue-600 mb-1">
-                {workoutRecords.length}
+                {totalElements}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">총 운동 횟수</div>
             </Card>
@@ -346,14 +372,14 @@ export default function HistoryPage() {
               <div className="text-lg sm:text-2xl font-bold text-green-600 mb-1">
                 {formatTime(workoutRecords.reduce((total, record) => total + record.totalTime, 0))}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">총 운동 시간</div>
+              <div className="text-xs sm:text-sm text-gray-600">이 페이지 운동 시간</div>
             </Card>
 
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-purple-600 mb-1">
                 {workoutRecords.reduce((total, record) => total + record.completedSets, 0)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">완료한 세트</div>
+              <div className="text-xs sm:text-sm text-gray-600">이 페이지 완료 세트</div>
             </Card>
 
             <Card className="p-3 sm:p-4 text-center">
@@ -362,7 +388,7 @@ export default function HistoryPage() {
                   ? Math.round(workoutRecords.reduce((total, record) => total + getCompletionRate(record), 0) / workoutRecords.length)
                   : 0}%
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">평균 완료율</div>
+              <div className="text-xs sm:text-sm text-gray-600">이 페이지 완료율</div>
             </Card>
           </div>
 
@@ -465,6 +491,49 @@ export default function HistoryPage() {
               ))}
             </div>
           )}
+
+          {/* 페이지네이션 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchListPage(currentPage - 1)}
+                disabled={currentPage === 0}
+                className="whitespace-nowrap"
+              >
+                <i className="ri-arrow-left-s-line mr-1"></i>
+                이전
+              </Button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => fetchListPage(page)}
+                    className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                      page === currentPage
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {page + 1}
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchListPage(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                className="whitespace-nowrap"
+              >
+                다음
+                <i className="ri-arrow-right-s-line ml-1"></i>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -558,8 +627,8 @@ export default function HistoryPage() {
                     <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 mt-1">
                       <span className="px-2 py-1 bg-gray-100 rounded text-xs">{exercise.bodyPart}</span>
-                      <span className="text-xs sm:text-sm">운동시간: {formatTime(exercise.exerciseTime)}</span>
-                      <span className="text-xs sm:text-sm">{exercise.sets.length}세트 완료</span>
+                      <span className="text-xs sm:text-sm">운동시간: {exercise.exerciseTime > 0 ? formatTime(exercise.exerciseTime) : '-'}</span>
+                      <span className="text-xs sm:text-sm">{exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}세트 완료</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -585,56 +654,66 @@ export default function HistoryPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium text-gray-900">세트 {setIndex + 1}</span>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            set.actualReps >= set.targetReps
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-orange-100 text-orange-700'
+                            !set.completed
+                              ? 'bg-gray-100 text-gray-500'
+                              : set.actualReps >= set.targetReps
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-orange-100 text-orange-700'
                           }`}>
-                            {set.actualReps >= set.targetReps ? '완료' : '미달'}
+                            {!set.completed ? '미완료' : set.actualReps >= set.targetReps ? '완료' : '미달'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-600">횟수: </span>
-                            <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
-                              {set.actualReps}
-                            </span>
-                            <span className="text-gray-400">/{set.targetReps}</span>
+                        {set.completed && (
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-600">횟수: </span>
+                              <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                                {set.actualReps}
+                              </span>
+                              <span className="text-gray-400">/{set.targetReps}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">무게: </span>
+                              {set.targetWeight ? (
+                                <>
+                                  <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                                    {set.actualWeight || set.targetWeight}
+                                  </span>
+                                  {set.targetWeight && <span className="text-gray-400">/{set.targetWeight}kg</span>}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-gray-600">휴식: </span>
+                              <span>{Math.floor(set.restTime / 60)}분</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">메모: </span>
+                              <span className="text-xs">{set.memo || '-'}</span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-gray-600">무게: </span>
-                            {set.targetWeight ? (
-                              <>
-                                <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-green-600 font-medium' : 'text-orange-600'}>
-                                  {set.actualWeight || set.targetWeight}
-                                </span>
-                                {set.targetWeight && <span className="text-gray-400">/{set.targetWeight}kg</span>}
-                              </>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-gray-600">휴식: </span>
-                            <span>{Math.floor(set.restTime / 60)}분</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">메모: </span>
-                            <span className="text-xs">{set.memo || '-'}</span>
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* 데스크톱 뷰 */}
                       <div className="hidden sm:grid sm:grid-cols-6 gap-2 text-sm py-2">
                         <div className="font-medium text-gray-900">{setIndex + 1}</div>
                         <div className="text-gray-700">
-                          <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
-                            {set.actualReps}
-                          </span>
-                          <span className="text-gray-400">/{set.targetReps}</span>
+                          {set.completed ? (
+                            <>
+                              <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                                {set.actualReps}
+                              </span>
+                              <span className="text-gray-400">/{set.targetReps}</span>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">-/{set.targetReps}</span>
+                          )}
                         </div>
                         <div className="text-gray-700">
-                          {set.targetWeight ? (
+                          {set.completed && set.targetWeight ? (
                             <>
                               <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-green-600 font-medium' : 'text-orange-600'}>
                                 {set.actualWeight || set.targetWeight}
@@ -647,15 +726,17 @@ export default function HistoryPage() {
                         </div>
                         <div className="text-gray-600">{Math.floor(set.restTime / 60)}분</div>
                         <div className="text-gray-600 text-xs">
-                          {set.memo || '-'}
+                          {set.completed ? (set.memo || '-') : '-'}
                         </div>
                         <div>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            set.actualReps >= set.targetReps
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-orange-100 text-orange-700'
+                            !set.completed
+                              ? 'bg-gray-100 text-gray-500'
+                              : set.actualReps >= set.targetReps
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-orange-100 text-orange-700'
                           }`}>
-                            {set.actualReps >= set.targetReps ? '완료' : '미달'}
+                            {!set.completed ? '미완료' : set.actualReps >= set.targetReps ? '완료' : '미달'}
                           </span>
                         </div>
                       </div>
@@ -668,29 +749,29 @@ export default function HistoryPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                     <div>
                       <div className="text-lg font-bold text-blue-600">
-                        {exercise.sets.reduce((total, set) => total + set.actualReps, 0)}
+                        {exercise.sets.filter(s => s.completed).reduce((total, set) => total + set.actualReps, 0)}
                       </div>
                       <div className="text-xs text-gray-600">총 횟수</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-green-600">
-                        {exercise.sets.filter(set => set.actualWeight).length > 0
-                          ? Math.max(...exercise.sets.filter(set => set.actualWeight).map(set => set.actualWeight!))
+                        {exercise.sets.filter(s => s.completed && s.actualWeight).length > 0
+                          ? Math.max(...exercise.sets.filter(s => s.completed && s.actualWeight).map(s => s.actualWeight!))
                           : '-'
                         }
-                        {exercise.sets.filter(set => set.actualWeight).length > 0 && 'kg'}
+                        {exercise.sets.filter(s => s.completed && s.actualWeight).length > 0 && 'kg'}
                       </div>
                       <div className="text-xs text-gray-600">최대 무게</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-purple-600">
-                        {exercise.sets.length}
+                        {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}
                       </div>
                       <div className="text-xs text-gray-600">완료 세트</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-orange-600">
-                        {formatTime(exercise.exerciseTime)}
+                        {exercise.exerciseTime > 0 ? formatTime(exercise.exerciseTime) : '-'}
                       </div>
                       <div className="text-xs text-gray-600">운동 시간</div>
                     </div>
