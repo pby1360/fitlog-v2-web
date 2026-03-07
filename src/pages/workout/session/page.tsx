@@ -11,7 +11,8 @@ import {
   completeWorkoutSessionSet,
   pauseWorkoutSession,
   resumeWorkoutSession,
-  endWorkoutSession
+  endWorkoutSession,
+  skipWorkoutSessionExercise
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -35,6 +36,7 @@ interface ExerciseSet {
   workoutPartName: string;
   sets: ExerciseSetDetail[];
   completed: boolean;
+  skipped: boolean;
 }
 
 interface WorkoutSession {
@@ -45,7 +47,6 @@ interface WorkoutSession {
   currentExerciseIndex: number;
   currentSetIndex: number;
   totalTime: number;
-  bodyPartTime: number;
   status: 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
   exercises: ExerciseSet[];
   totalPausedSeconds: number;
@@ -64,9 +65,7 @@ export default function WorkoutSessionPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
 
-  // 경과 시간 상태 추가
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
-  const [elapsedBodyPartTime, setElapsedBodyPartTime] = useState(0);
 
   const navigate = useNavigate();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,28 +81,6 @@ export default function WorkoutSessionPage() {
     }
 
     const { exercises, currentExerciseIndex, startTime } = workoutSession;
-    const currentExercise = exercises[currentExerciseIndex];
-
-    // 시작 시간 계산
-    let exerciseStartTime = startTime;
-    if (currentExerciseIndex > 0) {
-      const prevExercise = exercises[currentExerciseIndex - 1];
-      const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
-      if (lastCompletedSet?.completedAt) {
-        exerciseStartTime = lastCompletedSet.completedAt;
-      }
-    }
-
-    let bodyPartStartTime = startTime;
-    const currentBodyPartName = currentExercise.workoutPartName;
-    const firstIndexOfBodyPart = exercises.findIndex(ex => ex.workoutPartName === currentBodyPartName);
-    if (firstIndexOfBodyPart > 0) {
-      const prevExercise = exercises[firstIndexOfBodyPart - 1];
-      const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
-      if (lastCompletedSet?.completedAt) {
-        bodyPartStartTime = lastCompletedSet.completedAt;
-      }
-    }
 
     // 타이머 설정
     timerRef.current = setInterval(() => {
@@ -116,9 +93,6 @@ export default function WorkoutSessionPage() {
         totalTime: Math.max(0, Math.floor((now - effectiveSessionStartTimeForTotal) / 1000))
       } : null);
 
-      const currentExercise = exercises[currentExerciseIndex];
-
-      // 시작 시간 계산
       let exerciseStartTime = startTime;
       if (currentExerciseIndex > 0) {
         const prevExercise = exercises[currentExerciseIndex - 1];
@@ -128,19 +102,7 @@ export default function WorkoutSessionPage() {
         }
       }
 
-      let bodyPartStartTime = startTime;
-      const currentBodyPartName = currentExercise.workoutPartName;
-      const firstIndexOfBodyPart = exercises.findIndex(ex => ex.workoutPartName === currentBodyPartName);
-      if (firstIndexOfBodyPart > 0) {
-        const prevExercise = exercises[firstIndexOfBodyPart - 1];
-        const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
-        if (lastCompletedSet?.completedAt) {
-          bodyPartStartTime = lastCompletedSet.completedAt;
-        }
-      }
-
       setElapsedExerciseTime(Math.max(0, Math.floor((now - (exerciseStartTime + currentTotalPausedSeconds * 1000)) / 1000)));
-      setElapsedBodyPartTime(Math.max(0, Math.floor((now - (bodyPartStartTime + currentTotalPausedSeconds * 1000)) / 1000)));
     }, 1000);
 
     return () => {
@@ -152,14 +114,14 @@ export default function WorkoutSessionPage() {
   // API 응답을 UI 상태로 변환하는 헬퍼 함수
   const transformSessionResponse = (session: WorkoutSessionResponse, allWorkouts: WorkoutResponse[]): WorkoutSession => {
     const findFirstIncomplete = () => {
-      // 엣지 케이스 1: 운동 배열이 없거나 비어있는 경우
       if (!session.exercises || session.exercises.length === 0) {
         return { exerciseIndex: 0, setIndex: 0 };
       }
 
-      // 완료되지 않은 첫 세트 찾기
+      // skipped 운동은 제외하고 미완료 세트 탐색
       for (let i = 0; i < session.exercises.length; i++) {
         const exercise = session.exercises[i];
+        if (exercise.skipped) continue;
         if (exercise.sets && exercise.sets.length > 0) {
           const setIndex = exercise.sets.findIndex(s => !s.completed);
           if (setIndex !== -1) {
@@ -168,11 +130,10 @@ export default function WorkoutSessionPage() {
         }
       }
 
-      // 엣지 케이스 2: 모든 세트가 완료된 경우, 마지막 운동의 마지막 세트를 가리킴
+      // 모든 세트가 완료된 경우 마지막 운동의 마지막 세트
       const lastExIndex = session.exercises.length - 1;
       const lastExercise = session.exercises[lastExIndex];
       const lastSetIndex = (lastExercise?.sets?.length ?? 0) > 0 ? lastExercise.sets.length - 1 : 0;
-      
       return { exerciseIndex: lastExIndex, setIndex: lastSetIndex };
     };
 
@@ -185,14 +146,14 @@ export default function WorkoutSessionPage() {
       startTime: new Date(session.startTime).getTime(),
       currentExerciseIndex: exerciseIndex,
       currentSetIndex: setIndex,
-      totalTime: Math.max(0, Math.floor((Date.now() - (new Date(session.startTime).getTime() + (session.totalPausedSeconds || 0) * 1000)) / 1000)), // Apply totalPausedSeconds here
-      bodyPartTime: 0, // This will be adjusted in useEffect
+      totalTime: Math.max(0, Math.floor((Date.now() - (new Date(session.startTime).getTime() + (session.totalPausedSeconds || 0) * 1000)) / 1000)),
       status: session.status,
       exercises: session.exercises.map(ex => ({
         id: ex.id,
         exerciseId: ex.workoutId,
         workoutName: ex.workoutName,
-        workoutPartName: allWorkouts.find(w => w.id === ex.workoutId)?.bodyPart || '',
+        workoutPartName: ex.bodyPart || allWorkouts.find(w => w.id === ex.workoutId)?.bodyPart || '',
+        skipped: ex.skipped ?? false,
         sets: ex.sets.map(set => ({
           id: set.id,
           reps: set.reps,
@@ -407,31 +368,25 @@ export default function WorkoutSessionPage() {
     }
   };
   
-  const skipExercise = () => {
+  const skipExercise = async () => {
     if (!workoutSession) return;
-    const { currentExerciseIndex, exercises } = workoutSession;
+    const currentExercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
+    if (!currentExercise) return;
 
-    // 다음 미완료 운동 찾기
-    const nextIncompleteIndex = exercises.findIndex(
-      (ex, i) => i > currentExerciseIndex && !ex.completed
-    );
-
-    if (nextIncompleteIndex === -1) {
-      // 더 이상 남은 운동이 없음
-      setShowSkipModal(false);
-      setShowCompleteModal(true);
-      return;
-    }
-
-    setIsResting(false);
-    setRestTimeLeft(0);
     setShowSkipModal(false);
 
-    setWorkoutSession(prev => prev ? {
-      ...prev,
-      currentExerciseIndex: nextIncompleteIndex,
-      currentSetIndex: 0,
-    } : null);
+    try {
+      const updatedSession = await skipWorkoutSessionExercise(
+        workoutSession.id,
+        currentExercise.id,
+        true
+      );
+      setIsResting(false);
+      setRestTimeLeft(0);
+      updateSessionState(updatedSession);
+    } catch (error) {
+      console.error('Failed to skip exercise:', error);
+    }
   };
 
   // 헬퍼 함수
@@ -589,14 +544,14 @@ export default function WorkoutSessionPage() {
             </div>
             <div className="text-sm text-gray-600">전체 운동시간</div>
           </Card>
-          
+
           <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">
-              {formatTime(elapsedBodyPartTime)}
+            <div className="text-2xl font-bold text-indigo-600 mb-1">
+              {formatTime(elapsedExerciseTime)}
             </div>
-            <div className="text-sm text-gray-600">현재 부위 시간</div>
+            <div className="text-sm text-gray-600">운동 시간</div>
           </Card>
-                    
+
           <Card className="p-4 text-center">
             <div className="text-lg font-bold text-orange-600 mb-1">
               {currentBodyPart}
@@ -675,10 +630,6 @@ export default function WorkoutSessionPage() {
               <div className="text-center p-4 bg-gray-50 rounded-lg">
                 <div className="text-2xl font-bold text-gray-900 mb-1">{formatTime(currentSet.restTime)}</div>
                 <div className="text-sm text-gray-600">휴식 시간</div>
-              </div>
-              <div className="text-center p-4 bg-indigo-50 rounded-lg">
-                <div className="text-2xl font-bold text-indigo-600 mb-1">{formatTime(elapsedExerciseTime)}</div>
-                <div className="text-sm text-indigo-700">운동 시간</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600 mb-1">
@@ -761,20 +712,28 @@ export default function WorkoutSessionPage() {
             {[...workoutSession.exercises]
               .map((ex, i) => ({ ex, i }))
               .sort((a, b) => {
-                if (a.i === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS') return -1;
-                if (b.i === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS') return 1;
-                // 진행 중이 아닌 경우 원래 순서 유지 (이미 완료된 것들끼리는 원래 순서대로)
-                return 0; 
+                const priority = (item: { ex: ExerciseSet; i: number }) => {
+                  if (item.i === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS') return 0;
+                  if (!item.ex.completed && !item.ex.skipped) return 1;
+                  if (item.ex.skipped) return 2;
+                  return 3; // completed
+                };
+                const pa = priority(a);
+                const pb = priority(b);
+                if (pa !== pb) return pa - pb;
+                return a.i - b.i; // 같은 그룹 내에서는 원래 순서 유지
               })
               .map(({ ex: exercise, i: exerciseIndex }) => (
-              <div 
-                key={exercise.id} 
+              <div
+                key={exercise.id}
                 className={`p-4 rounded-lg border-2 transition-colors ${
                   exerciseIndex === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS'
-                    ? 'border-blue-500 bg-blue-50' 
-                    : exercise.completed 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-200 bg-white'
+                    ? 'border-blue-500 bg-blue-50'
+                    : exercise.skipped
+                      ? 'border-gray-300 bg-gray-50 opacity-50'
+                      : exercise.completed
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
