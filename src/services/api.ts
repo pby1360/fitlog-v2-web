@@ -265,3 +265,151 @@ export const endWorkoutSession = async (
         body: JSON.stringify({ endTime: new Date().toISOString(), status }),
     });
 };
+
+// Workout Log Types
+export interface WorkoutLogSetResponse {
+    id: number;
+    targetReps: number;
+    actualReps: number;
+    targetWeight?: number;
+    actualWeight?: number;
+    restTime: number;
+    memo?: string;
+}
+
+export interface WorkoutLogExerciseResponse {
+    id: number;
+    name: string;
+    bodyPart: string;
+    exerciseTime: number;
+    sets: WorkoutLogSetResponse[];
+}
+
+export interface WorkoutLogResponse {
+    id: number;
+    programName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    totalTime: number;
+    completedExercises: number;
+    totalExercises: number;
+    completedSets: number;
+    totalSets: number;
+    bodyParts: string[];
+    exercises: WorkoutLogExerciseResponse[];
+}
+
+// Server response types (actual shape returned by API)
+interface ServerLogSummary {
+    id: number;
+    workoutProgramName: string;
+    startTime: string;
+    endTime: string;
+    durationSeconds: number;
+    totalExercises: number;
+    completedExercises: number;
+    totalSets: number;
+    completedSets: number;
+    bodyParts: string[];
+}
+
+interface ServerSetResponse {
+    id: number;
+    reps: number;
+    weight?: number;
+    restTime: number;
+    completed: boolean;
+    actualReps?: number;
+    actualWeight?: number;
+    actualMemo?: string;
+}
+
+interface ServerExerciseResponse {
+    id: number;
+    workoutName: string;
+    bodyPart?: string;
+    sets: ServerSetResponse[];
+}
+
+interface ServerSessionDetail {
+    id: number;
+    workoutProgramName: string;
+    startTime: string;
+    endTime: string;
+    exercises: ServerExerciseResponse[];
+}
+
+const parseIsoDate = (iso: string): string => (iso ? iso.substring(0, 10) : '');
+
+const parseIsoTime = (iso: string): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
+const mapSummaryToLog = (s: ServerLogSummary): WorkoutLogResponse => ({
+    id: s.id,
+    programName: s.workoutProgramName ?? '',
+    date: parseIsoDate(s.startTime),
+    startTime: parseIsoTime(s.startTime),
+    endTime: parseIsoTime(s.endTime),
+    totalTime: s.durationSeconds ?? 0,
+    completedExercises: s.completedExercises ?? 0,
+    totalExercises: s.totalExercises ?? 0,
+    completedSets: s.completedSets ?? 0,
+    totalSets: s.totalSets ?? 0,
+    bodyParts: s.bodyParts ?? [],
+    exercises: [],
+});
+
+const mapDetailToLog = (r: ServerSessionDetail): WorkoutLogResponse => {
+    const exercises = r.exercises ?? [];
+    const allSets = exercises.flatMap(e => e.sets ?? []);
+    const totalSeconds = r.startTime && r.endTime
+        ? Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 1000)
+        : 0;
+    return {
+        id: r.id,
+        programName: r.workoutProgramName ?? '',
+        date: parseIsoDate(r.startTime),
+        startTime: parseIsoTime(r.startTime),
+        endTime: parseIsoTime(r.endTime),
+        totalTime: totalSeconds,
+        completedExercises: exercises.filter(e => (e.sets ?? []).every(s => s.completed)).length,
+        totalExercises: exercises.length,
+        completedSets: allSets.filter(s => s.completed).length,
+        totalSets: allSets.length,
+        bodyParts: [...new Set(exercises.map(e => e.bodyPart ?? '').filter(Boolean))],
+        exercises: exercises.map(e => ({
+            id: e.id,
+            name: e.workoutName ?? '',
+            bodyPart: e.bodyPart ?? '',
+            exerciseTime: 0,
+            sets: (e.sets ?? []).map(s => ({
+                id: s.id,
+                targetReps: s.reps ?? 0,
+                actualReps: s.actualReps ?? 0,
+                targetWeight: s.weight,
+                actualWeight: s.actualWeight,
+                restTime: s.restTime ?? 0,
+                memo: s.actualMemo ?? '',
+            })),
+        })),
+    };
+};
+
+export const getWorkoutLogs = async (): Promise<WorkoutLogResponse[]> => {
+    const result = await fetchWithAuth(`${API_BASE_URL}/workout-sessions/logs`);
+    let summaries: ServerLogSummary[];
+    if (Array.isArray(result)) summaries = result;
+    else if (result?.content && Array.isArray(result.content)) summaries = result.content;
+    else if (result?.data && Array.isArray(result.data)) summaries = result.data;
+    else return [];
+    return summaries.map(mapSummaryToLog);
+};
+
+export const getWorkoutLog = async (id: number): Promise<WorkoutLogResponse> => {
+    const result: ServerSessionDetail = await fetchWithAuth(`${API_BASE_URL}/workout-sessions/logs/${id}`);
+    return mapDetailToLog(result);
+};

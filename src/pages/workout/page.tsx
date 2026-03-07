@@ -30,6 +30,7 @@ interface Program {
 export default function WorkoutPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function WorkoutPage() {
         }));
         setPrograms(transformedPrograms);
       } catch (error) {
+        alert("데이터를 불러오는데 실패했습니다.");
         console.error("Failed to initialize workout page:", error);
       } finally {
         setIsLoading(false);
@@ -80,17 +82,28 @@ export default function WorkoutPage() {
   }, [navigate]);
 
   const handleStartWorkout = async (programId: number) => {
+    setIsStarting(true);
     try {
       await startWorkoutSession(programId);
       navigate('/workout/session');
     } catch (error) {
+      alert("운동을 시작하는 중 오류가 발생했습니다.");
       console.error("Failed to start workout session:", error);
+    } finally {
+      setIsStarting(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
+      
+      {isStarting && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white">
+          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
+          <p className="text-lg font-medium">운동을 시작하는 중...</p>
+        </div>
+      )}
       
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">

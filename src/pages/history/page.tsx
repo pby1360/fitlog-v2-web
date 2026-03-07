@@ -3,279 +3,65 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
+import { getWorkoutLogs, getWorkoutLog, WorkoutLogResponse } from '../../services/api';
 
-interface WorkoutRecord {
-  id: string;
-  programName: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  totalTime: number;
-  completedExercises: number;
-  totalExercises: number;
-  completedSets: number;
-  totalSets: number;
-  bodyParts: string[];
-  exercises: ExerciseRecord[];
-}
-
-interface ExerciseRecord {
-  id: string;
-  name: string;
-  bodyPart: string;
-  sets: SetRecord[];
-  exerciseTime: number;
-}
-
-interface SetRecord {
-  id: string;
-  targetReps: number;
-  actualReps: number;
-  targetWeight?: number;
-  actualWeight?: number;
-  restTime: number;
-  memo?: string;
-}
-
-// 샘플 운동 기록 데이터
-const sampleWorkoutRecords: WorkoutRecord[] = [
-  {
-    id: '1',
-    programName: '상체 집중 루틴',
-    date: '2024-01-20',
-    startTime: '14:30',
-    endTime: '15:45',
-    totalTime: 4500, // 75분
-    completedExercises: 3,
-    totalExercises: 3,
-    completedSets: 9,
-    totalSets: 9,
-    bodyParts: ['가슴', '등', '어깨'],
-    exercises: [
-      {
-        id: 'ex1',
-        name: '벤치프레스',
-        bodyPart: '가슴',
-        exerciseTime: 1800, // 30분
-        sets: [
-          { id: 'set1', targetReps: 12, actualReps: 12, targetWeight: 60, actualWeight: 60, restTime: 90 },
-          { id: 'set2', targetReps: 10, actualReps: 10, targetWeight: 65, actualWeight: 65, restTime: 90 },
-          { id: 'set3', targetReps: 8, actualReps: 8, targetWeight: 70, actualWeight: 70, restTime: 120 }
-        ]
-      },
-      {
-        id: 'ex2',
-        name: '풀업',
-        bodyPart: '등',
-        exerciseTime: 1500, // 25분
-        sets: [
-          { id: 'set4', targetReps: 8, actualReps: 8, restTime: 120 },
-          { id: 'set5', targetReps: 6, actualReps: 6, restTime: 120 },
-          { id: 'set6', targetReps: 5, actualReps: 5, restTime: 180 }
-        ]
-      },
-      {
-        id: 'ex3',
-        name: '숄더프레스',
-        bodyPart: '어깨',
-        exerciseTime: 1200, // 20분
-        sets: [
-          { id: 'set7', targetReps: 12, actualReps: 12, targetWeight: 20, actualWeight: 20, restTime: 60 },
-          { id: 'set8', targetReps: 10, actualReps: 10, targetWeight: 22, actualWeight: 22, restTime: 60 },
-          { id: 'set9', targetReps: 8, actualReps: 8, targetWeight: 25, actualWeight: 25, restTime: 90 }
-        ]
-      }
-    ]
-  },
-  {
-    id: '2',
-    programName: '하체 강화 프로그램',
-    date: '2024-01-18',
-    startTime: '10:00',
-    endTime: '11:15',
-    totalTime: 4500, // 75분
-    completedExercises: 2,
-    totalExercises: 2,
-    completedSets: 6,
-    totalSets: 6,
-    bodyParts: ['하체'],
-    exercises: [
-      {
-        id: 'ex4',
-        name: '스쿼트',
-        bodyPart: '하체',
-        exerciseTime: 2700, // 45분
-        sets: [
-          { id: 'set10', targetReps: 15, actualReps: 15, targetWeight: 80, actualWeight: 80, restTime: 120 },
-          { id: 'set11', targetReps: 12, actualReps: 12, targetWeight: 90, actualWeight: 90, restTime: 120 },
-          { id: 'set12', targetReps: 10, actualReps: 10, targetWeight: 100, actualWeight: 100, restTime: 150 }
-        ]
-      },
-      {
-        id: 'ex5',
-        name: '런지',
-        bodyPart: '하체',
-        exerciseTime: 1800, // 30분
-        sets: [
-          { id: 'set13', targetReps: 12, actualReps: 12, restTime: 90 },
-          { id: 'set14', targetReps: 10, actualReps: 10, restTime: 90 },
-          { id: 'set15', targetReps: 8, actualReps: 8, restTime: 120 }
-        ]
-      }
-    ]
-  },
-  {
-    id: '3',
-    programName: '전신 운동 루틴',
-    date: '2024-01-15',
-    startTime: '16:00',
-    endTime: '17:30',
-    totalTime: 5400, // 90분
-    completedExercises: 2,
-    totalExercises: 2,
-    completedSets: 6,
-    totalSets: 6,
-    bodyParts: ['등', '가슴'],
-    exercises: [
-      {
-        id: 'ex6',
-        name: '데드리프트',
-        bodyPart: '등',
-        exerciseTime: 3600, // 60분
-        sets: [
-          { id: 'set16', targetReps: 8, actualReps: 8, targetWeight: 100, actualWeight: 100, restTime: 180 },
-          { id: 'set17', targetReps: 6, actualReps: 6, targetWeight: 110, actualWeight: 110, restTime: 180 },
-          { id: 'set18', targetReps: 5, actualReps: 5, targetWeight: 120, actualWeight: 120, restTime: 240 }
-        ]
-      },
-      {
-        id: 'ex7',
-        name: '푸시업',
-        bodyPart: '가슴',
-        exerciseTime: 1800, // 30분
-        sets: [
-          { id: 'set19', targetReps: 20, actualReps: 20, restTime: 60 },
-          { id: 'set20', targetReps: 15, actualReps: 15, restTime: 60 },
-          { id: 'set21', targetReps: 12, actualReps: 12, restTime: 90 }
-        ]
-      }
-    ]
-  },
-  {
-    id: '4',
-    programName: '상체 집중 루틴',
-    date: '2024-01-22',
-    startTime: '09:00',
-    endTime: '10:30',
-    totalTime: 5400,
-    completedExercises: 3,
-    totalExercises: 3,
-    completedSets: 9,
-    totalSets: 9,
-    bodyParts: ['가슴', '등', '어깨'],
-    exercises: [
-      {
-        id: 'ex8',
-        name: '벤치프레스',
-        bodyPart: '가슴',
-        exerciseTime: 1800,
-        sets: [
-          { id: 'set22', targetReps: 12, actualReps: 12, targetWeight: 65, actualWeight: 65, restTime: 90 },
-          { id: 'set23', targetReps: 10, actualReps: 10, targetWeight: 70, actualWeight: 70, restTime: 90 },
-          { id: 'set24', targetReps: 8, actualReps: 8, targetWeight: 75, actualWeight: 75, restTime: 120 }
-        ]
-      },
-      {
-        id: 'ex9',
-        name: '풀업',
-        bodyPart: '등',
-        exerciseTime: 1500,
-        sets: [
-          { id: 'set25', targetReps: 8, actualReps: 8, restTime: 120 },
-          { id: 'set26', targetReps: 6, actualReps: 6, restTime: 120 },
-          { id: 'set27', targetReps: 5, actualReps: 5, restTime: 180 }
-        ]
-      },
-      {
-        id: 'ex10',
-        name: '숄더프레스',
-        bodyPart: '어깨',
-        exerciseTime: 1200,
-        sets: [
-          { id: 'set28', targetReps: 12, actualReps: 12, targetWeight: 22, actualWeight: 22, restTime: 60 },
-          { id: 'set29', targetReps: 10, actualReps: 10, targetWeight: 25, actualWeight: 25, restTime: 60 },
-          { id: 'set30', targetReps: 8, actualReps: 8, targetWeight: 27, actualWeight: 27, restTime: 90 }
-        ]
-      }
-    ]
-  },
-  {
-    id: '5',
-    programName: '하체 강화 프로그램',
-    date: '2024-01-25',
-    startTime: '18:00',
-    endTime: '19:20',
-    totalTime: 4800,
-    completedExercises: 2,
-    totalExercises: 2,
-    completedSets: 6,
-    totalSets: 6,
-    bodyParts: ['하체'],
-    exercises: [
-      {
-        id: 'ex11',
-        name: '스쿼트',
-        bodyPart: '하체',
-        exerciseTime: 2700,
-        sets: [
-          { id: 'set31', targetReps: 15, actualReps: 15, targetWeight: 85, actualWeight: 85, restTime: 120 },
-          { id: 'set32', targetReps: 12, actualReps: 12, targetWeight: 95, actualWeight: 95, restTime: 120 },
-          { id: 'set33', targetReps: 10, actualReps: 10, targetWeight: 105, actualWeight: 105, restTime: 150 }
-        ]
-      },
-      {
-        id: 'ex12',
-        name: '런지',
-        bodyPart: '하체',
-        exerciseTime: 1800,
-        sets: [
-          { id: 'set34', targetReps: 12, actualReps: 12, restTime: 90 },
-          { id: 'set35', targetReps: 10, actualReps: 10, restTime: 90 },
-          { id: 'set36', targetReps: 8, actualReps: 8, restTime: 120 }
-        ]
-      }
-    ]
-  }
-];
+type WorkoutRecord = WorkoutLogResponse;
 
 export default function HistoryPage() {
-  const [workoutRecords] = useState<WorkoutRecord[]>(sampleWorkoutRecords);
+  const [workoutRecords, setWorkoutRecords] = useState<WorkoutRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<WorkoutRecord | null>(null);
   const [view, setView] = useState<'list' | 'calendar' | 'detail'>('list');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { id } = useParams();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const logs = await getWorkoutLogs();
+        setWorkoutRecords(logs);
+      } catch (err) {
+        setError('운동 기록을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
   // URL 파라미터에 따라 상세 화면 표시
   useEffect(() => {
-    if (id) {
-      const record = workoutRecords.find(r => r.id === id);
-      if (record) {
-        setSelectedRecord(record);
-        setView('detail');
-      } else {
-        navigate('/history');
-      }
-    } else {
+    if (!id) {
       setSelectedRecord(null);
       setView('list');
+      return;
     }
-  }, [id, workoutRecords, navigate]);
+
+    const numericId = Number(id);
+    const fetchDetail = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const log = await getWorkoutLog(numericId);
+        setSelectedRecord(log);
+        setView('detail');
+      } catch {
+        navigate('/history');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetail();
+  }, [id, navigate]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}시간 ${minutes}분`;
     }
@@ -287,14 +73,14 @@ export default function HistoryPage() {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (date.toDateString() === today.toDateString()) {
       return '오늘';
     } else if (date.toDateString() === yesterday.toDateString()) {
       return '어제';
     } else {
-      return date.toLocaleDateString('ko-KR', { 
-        month: 'long', 
+      return date.toLocaleDateString('ko-KR', {
+        month: 'long',
         day: 'numeric',
         weekday: 'short'
       });
@@ -302,6 +88,7 @@ export default function HistoryPage() {
   };
 
   const getCompletionRate = (record: WorkoutRecord) => {
+    if (record.totalSets === 0) return 0;
     return Math.round((record.completedSets / record.totalSets) * 100);
   };
 
@@ -343,19 +130,44 @@ export default function HistoryPage() {
     });
   };
 
+  if (loading && view !== 'detail') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-center h-64">
+          <div className="text-gray-500">불러오는 중...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && view !== 'detail') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <Card className="p-8 text-center">
+            <p className="text-red-500 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>다시 시도</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   // 캘린더 뷰
   if (view === 'calendar') {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
     const monthYear = currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
-    
+
     const calendarDays = [];
-    
+
     // 빈 칸 추가 (이전 달 마지막 날들)
     for (let i = 0; i < firstDay; i++) {
       calendarDays.push(null);
     }
-    
+
     // 현재 달의 날짜들 추가
     for (let day = 1; day <= daysInMonth; day++) {
       calendarDays.push(day);
@@ -364,7 +176,7 @@ export default function HistoryPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        
+
         <div className="max-w-6xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
@@ -379,8 +191,8 @@ export default function HistoryPage() {
                 <p className="text-gray-600 mt-1">캘린더로 운동 기록을 확인하세요</p>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant={view === 'list' ? 'default' : 'outline'} 
+                <Button
+                  variant={view === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => {
                     setView('list');
@@ -391,8 +203,8 @@ export default function HistoryPage() {
                   <i className="ri-list-unordered mr-2"></i>
                   목록
                 </Button>
-                <Button 
-                  variant={view === 'calendar' ? 'default' : 'outline'} 
+                <Button
+                  variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setView('calendar')}
                   className="whitespace-nowrap"
@@ -442,8 +254,8 @@ export default function HistoryPage() {
                 const isToday = new Date().toDateString() === new Date(dateString).toDateString();
 
                 return (
-                  <div 
-                    key={day} 
+                  <div
+                    key={day}
                     className={`p-1 sm:p-2 h-20 sm:h-24 border border-gray-200 rounded-lg ${
                       isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'
                     }`}
@@ -454,8 +266,8 @@ export default function HistoryPage() {
                       {day}
                     </div>
                     <div className="space-y-1">
-                      {workoutsForDay.slice(0, 2).map((workout, idx) => (
-                        <button 
+                      {workoutsForDay.slice(0, 2).map((workout) => (
+                        <button
                           key={workout.id}
                           onClick={() => viewDetail(workout)}
                           className="w-full text-left text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded truncate hover:bg-green-200 cursor-pointer transition-colors"
@@ -484,7 +296,7 @@ export default function HistoryPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        
+
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
@@ -499,8 +311,8 @@ export default function HistoryPage() {
                 <p className="text-gray-600 mt-1">지금까지의 운동 기록을 확인하세요</p>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant={view === 'list' ? 'default' : 'outline'} 
+                <Button
+                  variant={view === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setView('list')}
                   className="whitespace-nowrap"
@@ -508,8 +320,8 @@ export default function HistoryPage() {
                   <i className="ri-list-unordered mr-2"></i>
                   목록
                 </Button>
-                <Button 
-                  variant={view === 'calendar' ? 'default' : 'outline'} 
+                <Button
+                  variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setView('calendar')}
                   className="whitespace-nowrap"
@@ -529,24 +341,26 @@ export default function HistoryPage() {
               </div>
               <div className="text-xs sm:text-sm text-gray-600">총 운동 횟수</div>
             </Card>
-            
+
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-green-600 mb-1">
                 {formatTime(workoutRecords.reduce((total, record) => total + record.totalTime, 0))}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">총 운동 시간</div>
             </Card>
-            
+
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-purple-600 mb-1">
                 {workoutRecords.reduce((total, record) => total + record.completedSets, 0)}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">완료한 세트</div>
             </Card>
-            
+
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-orange-600 mb-1">
-                {Math.round(workoutRecords.reduce((total, record) => total + getCompletionRate(record), 0) / workoutRecords.length)}%
+                {workoutRecords.length > 0
+                  ? Math.round(workoutRecords.reduce((total, record) => total + getCompletionRate(record), 0) / workoutRecords.length)
+                  : 0}%
               </div>
               <div className="text-xs sm:text-sm text-gray-600">평균 완료율</div>
             </Card>
@@ -570,9 +384,9 @@ export default function HistoryPage() {
           ) : (
             <div className="space-y-3 sm:space-y-4">
               {workoutRecords.map((record) => (
-                <Card 
-                  key={record.id} 
-                  className="p-4 sm:p-6 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-gray-50" 
+                <Card
+                  key={record.id}
+                  className="p-4 sm:p-6 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-gray-50"
                 >
                   <div className="flex flex-col gap-3 sm:gap-4" onClick={() => viewDetail(record)}>
                     {/* 헤더 정보 */}
@@ -582,7 +396,7 @@ export default function HistoryPage() {
                           <h3 className="text-lg font-semibold text-gray-900">{record.programName}</h3>
                           <span className="text-sm text-gray-500 font-medium">{formatDate(record.date)}</span>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <i className="ri-time-line text-xs"></i>
@@ -602,7 +416,7 @@ export default function HistoryPage() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* 완료율 표시 */}
                       <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1">
                         <div className="text-xl sm:text-2xl font-bold text-green-600">{getCompletionRate(record)}%</div>
@@ -621,7 +435,7 @@ export default function HistoryPage() {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* 하단 액션 영역 */}
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -630,12 +444,12 @@ export default function HistoryPage() {
                           <span>목표 달성</span>
                         </div>
                         <div className="text-xs">
-                          {record.exercises.filter(ex => 
+                          {record.exercises.filter(ex =>
                             ex.sets.every(set => set.actualReps >= set.targetReps)
                           ).length}/{record.exercises.length} 운동
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           viewDetail(record);
@@ -661,7 +475,7 @@ export default function HistoryPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        
+
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
@@ -700,21 +514,21 @@ export default function HistoryPage() {
               </div>
               <div className="text-xs sm:text-sm text-gray-600">총 운동시간</div>
             </Card>
-            
+
             <Card className="p-4 text-center">
               <div className="text-xl sm:text-2xl font-bold text-green-600 mb-1">
                 {selectedRecord.completedExercises}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">완료한 운동</div>
             </Card>
-            
+
             <Card className="p-4 text-center">
               <div className="text-xl sm:text-2xl font-bold text-purple-600 mb-1">
                 {selectedRecord.completedSets}
               </div>
               <div className="text-xs sm:text-sm text-gray-600">완료한 세트</div>
             </Card>
-            
+
             <Card className="p-4 text-center">
               <div className="text-xl sm:text-2xl font-bold text-orange-600 mb-1">
                 {getCompletionRate(selectedRecord)}%
@@ -763,7 +577,7 @@ export default function HistoryPage() {
                     <div>메모</div>
                     <div>달성률</div>
                   </div>
-                  
+
                   {exercise.sets.map((set, setIndex) => (
                     <div key={set.id} className="border-b border-gray-100 last:border-b-0 pb-3 last:pb-0">
                       {/* 모바일 뷰 */}
@@ -771,8 +585,8 @@ export default function HistoryPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium text-gray-900">세트 {setIndex + 1}</span>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            set.actualReps >= set.targetReps 
-                              ? 'bg-green-100 text-green-700' 
+                            set.actualReps >= set.targetReps
+                              ? 'bg-green-100 text-green-700'
                               : 'bg-orange-100 text-orange-700'
                           }`}>
                             {set.actualReps >= set.targetReps ? '완료' : '미달'}
@@ -837,8 +651,8 @@ export default function HistoryPage() {
                         </div>
                         <div>
                           <span className={`text-xs px-2 py-1 rounded-full ${
-                            set.actualReps >= set.targetReps 
-                              ? 'bg-green-100 text-green-700' 
+                            set.actualReps >= set.targetReps
+                              ? 'bg-green-100 text-green-700'
                               : 'bg-orange-100 text-orange-700'
                           }`}>
                             {set.actualReps >= set.targetReps ? '완료' : '미달'}
@@ -860,7 +674,7 @@ export default function HistoryPage() {
                     </div>
                     <div>
                       <div className="text-lg font-bold text-green-600">
-                        {exercise.sets.filter(set => set.actualWeight).length > 0 
+                        {exercise.sets.filter(set => set.actualWeight).length > 0
                           ? Math.max(...exercise.sets.filter(set => set.actualWeight).map(set => set.actualWeight!))
                           : '-'
                         }
