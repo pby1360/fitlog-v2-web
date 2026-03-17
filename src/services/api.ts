@@ -181,6 +181,45 @@ export const getMyInfo = async (): Promise<any> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
 };
 
+export interface MemberProfile {
+  id: number;
+  email: string;
+  nickname: string;
+  imageUrl: string | null;
+  provider: string;
+  phone: string | null;
+  birthDate: string | null;  // "YYYY-MM-DD"
+  height: number | null;
+  weight: number | null;
+  goal: string | null;
+  experience: string | null;
+  createdAt: string;  // "YYYY-MM-DD"
+  totalWorkoutDays: number;
+  totalCompletedSets: number;
+  totalDurationSeconds: number;
+}
+
+export interface MemberUpdateRequest {
+  nickname: string;
+  phone: string;
+  birthDate: string;
+  height: number | null;
+  weight: number | null;
+  goal: string;
+  experience: string;
+}
+
+export const getMyProfile = async (): Promise<MemberProfile> => {
+  return fetchWithAuth(`${API_BASE_URL}/members/me`);
+};
+
+export const updateMyProfile = async (data: MemberUpdateRequest): Promise<MemberProfile> => {
+  return fetchWithAuth(`${API_BASE_URL}/members/me`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
 // Workout Session Types
 interface SessionSetResponse {
     id: number;
@@ -456,10 +495,11 @@ export interface WorkoutLogPage {
     averageCompletionRate: number;
 }
 
-export const getWorkoutLogs = async (page = 0, size = 10): Promise<WorkoutLogPage> => {
-    const result = await fetchWithAuth(
-        `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`
-    );
+export const getWorkoutLogs = async (page = 0, size = 10, startDate?: string, endDate?: string): Promise<WorkoutLogPage> => {
+    let url = `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const result = await fetchWithAuth(url);
     if (result?.content && Array.isArray(result.content)) {
         return {
             logs: (result.content as ServerLogSummary[]).map(mapSummaryToLog),
