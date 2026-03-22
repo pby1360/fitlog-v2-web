@@ -71,6 +71,26 @@ export default function WorkoutSessionPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const exerciseStartTimeRef = useRef<number>(0);
+  const prevExerciseIndexRef = useRef<number | undefined>(undefined);
+
+  const EXERCISE_START_KEY = 'exercise_start_time';
+
+  const saveExerciseStartTime = (sessionId: number, exerciseIndex: number, time: number) => {
+    localStorage.setItem(EXERCISE_START_KEY, JSON.stringify({ sessionId, exerciseIndex, time }));
+  };
+
+  const loadExerciseStartTime = (sessionId: number, exerciseIndex: number): number | null => {
+    try {
+      const stored = localStorage.getItem(EXERCISE_START_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (parsed.sessionId === sessionId && parsed.exerciseIndex === exerciseIndex) {
+        return parsed.time;
+      }
+    } catch {}
+    return null;
+  };
 
   // 모든 타이머 로직을 통합 관리하는 useEffect
   useEffect(() => {
@@ -80,7 +100,23 @@ export default function WorkoutSessionPage() {
       };
     }
 
-    const { exercises, currentExerciseIndex, startTime } = workoutSession;
+    const { currentExerciseIndex, startTime } = workoutSession;
+    const prevIndex = prevExerciseIndexRef.current;
+
+    if (prevIndex === undefined) {
+      // 초기 페이지 로드: localStorage에서 운동 시작 시간 복원, 없으면 세션 시작 시간 사용
+      const saved = loadExerciseStartTime(workoutSession.id, currentExerciseIndex);
+      exerciseStartTimeRef.current = saved ?? startTime;
+    } else if (prevIndex !== currentExerciseIndex) {
+      // 운동 전환(건너뛰기 or 세트 완료 후 다음 운동): 현재 시각으로 초기화 후 저장
+      const now = Date.now();
+      exerciseStartTimeRef.current = now;
+      saveExerciseStartTime(workoutSession.id, currentExerciseIndex, now);
+      setElapsedExerciseTime(0);
+    }
+    // status만 변경(일시정지 후 재개 등): exerciseStartTimeRef 유지
+
+    prevExerciseIndexRef.current = currentExerciseIndex;
 
     // 타이머 설정
     timerRef.current = setInterval(() => {
@@ -93,16 +129,7 @@ export default function WorkoutSessionPage() {
         totalTime: Math.max(0, Math.floor((now - effectiveSessionStartTimeForTotal) / 1000))
       } : null);
 
-      let exerciseStartTime = startTime;
-      if (currentExerciseIndex > 0) {
-        const prevExercise = exercises[currentExerciseIndex - 1];
-        const lastCompletedSet = [...prevExercise.sets].reverse().find(s => s.completed && s.completedAt);
-        if (lastCompletedSet?.completedAt) {
-          exerciseStartTime = lastCompletedSet.completedAt;
-        }
-      }
-
-      setElapsedExerciseTime(Math.max(0, Math.floor((now - (exerciseStartTime + currentTotalPausedSeconds * 1000)) / 1000)));
+      setElapsedExerciseTime(Math.max(0, Math.floor((now - exerciseStartTimeRef.current) / 1000)));
     }, 1000);
 
     return () => {
