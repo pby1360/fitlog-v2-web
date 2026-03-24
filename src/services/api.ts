@@ -15,6 +15,38 @@ interface WorkoutResponse {
 }
 
 let isRedirecting = false;
+let refreshPromise: Promise<string | null> | null = null;
+
+const tryRefreshToken = async (): Promise<string | null> => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return data.accessToken;
+  } catch {
+    return null;
+  }
+};
+
+const logout = () => {
+  if (!isRedirecting) {
+    isRedirecting = true;
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    redirectToHome();
+  }
+};
 
 const fetchWithAuth = async (url: string, options?: RequestInit) => {
   const token = localStorage.getItem('accessToken');
@@ -27,20 +59,43 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
-    if (!isRedirecting) {
-      isRedirecting = true;
-      localStorage.removeItem('accessToken');
-      redirectToHome();
+    if (!refreshPromise) {
+      refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
     }
+
+    const newToken = await refreshPromise;
+
+    if (newToken) {
+      const retryHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${newToken}`,
+        ...options?.headers,
+      };
+      const retryResponse = await fetch(url, { ...options, headers: retryHeaders });
+
+      if (retryResponse.status === 401) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => ({ message: 'API 요청 실패' }));
+        throw new Error(errorData.message || 'API 요청 실패');
+      }
+
+      const text = await retryResponse.text();
+      return text ? JSON.parse(text) : null;
+    }
+
+    logout();
     throw new Error('Unauthorized');
   }
 
   if (!response.ok) {
-    // 에러 처리 로직
     const errorData = await response.json().catch(() => ({ message: 'API 요청 실패' }));
     throw new Error(errorData.message || 'API 요청 실패');
   }
-  
+
   const text = await response.text();
   return text ? JSON.parse(text) : null;
 };
@@ -179,6 +234,45 @@ export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
 
 export const getMyInfo = async (): Promise<any> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
+};
+
+export interface MemberProfile {
+  id: number;
+  email: string;
+  nickname: string;
+  imageUrl: string | null;
+  provider: string;
+  phone: string | null;
+  birthDate: string | null;  // "YYYY-MM-DD"
+  height: number | null;
+  weight: number | null;
+  goal: string | null;
+  experience: string | null;
+  createdAt: string;  // "YYYY-MM-DD"
+  totalWorkoutDays: number;
+  totalCompletedSets: number;
+  totalDurationSeconds: number;
+}
+
+export interface MemberUpdateRequest {
+  nickname: string;
+  phone: string;
+  birthDate: string;
+  height: number | null;
+  weight: number | null;
+  goal: string;
+  experience: string;
+}
+
+export const getMyProfile = async (): Promise<MemberProfile> => {
+  return fetchWithAuth(`${API_BASE_URL}/members/me`);
+};
+
+export const updateMyProfile = async (data: MemberUpdateRequest): Promise<MemberProfile> => {
+  return fetchWithAuth(`${API_BASE_URL}/members/me`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 };
 
 // Workout Session Types
@@ -456,10 +550,11 @@ export interface WorkoutLogPage {
     averageCompletionRate: number;
 }
 
-export const getWorkoutLogs = async (page = 0, size = 10): Promise<WorkoutLogPage> => {
-    const result = await fetchWithAuth(
-        `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`
-    );
+export const getWorkoutLogs = async (page = 0, size = 10, startDate?: string, endDate?: string): Promise<WorkoutLogPage> => {
+    let url = `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const result = await fetchWithAuth(url);
     if (result?.content && Array.isArray(result.content)) {
         return {
             logs: (result.content as ServerLogSummary[]).map(mapSummaryToLog),

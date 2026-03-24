@@ -1,8 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Button from '../../components/base/Button';
-import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
 import {
   getDashboardStats,
@@ -15,13 +13,8 @@ const DAY_LABELS: Record<string, string> = {
   MON: '월', TUE: '화', WED: '수',
   THU: '목', FRI: '금', SAT: '토', SUN: '일',
 };
-
 const DAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
-// JS getDay(): 0=일,1=월,...,6=토 → 오늘 요일을 MON~SUN 키로 변환
-const TODAY_DAY_KEY = DAY_ORDER[
-  new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
-];
+const TODAY_DAY_KEY = DAY_ORDER[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -38,9 +31,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      setError(null);
+    (async () => {
       try {
         const [dashboardStats, session] = await Promise.all([
           getDashboardStats(),
@@ -53,42 +44,33 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    };
-    fetchDashboardData();
+    })();
   }, []);
 
   const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) return `${hours}시간 ${minutes}분`;
-    return `${minutes}분`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}시간 ${m}분`;
+    return `${m}분`;
   };
 
-  const formatDate = (dateStr: string): string => {
-    const todayStr = new Date().toISOString().substring(0, 10);
+  const formatDate = (dateStr: string) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().substring(0, 10);
+    const yStr = yesterday.toISOString().slice(0, 10);
     if (dateStr === todayStr) return '오늘';
-    if (dateStr === yesterdayStr) return '어제';
+    if (dateStr === yStr) return '어제';
     const d = new Date(dateStr);
     return `${d.getMonth() + 1}월 ${d.getDate()}일`;
   };
 
   const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return '좋은 아침입니다';
-    if (hour < 18) return '좋은 오후입니다';
-    return '좋은 저녁입니다';
+    const h = currentTime.getHours();
+    if (h < 12) return '좋은 아침이에요';
+    if (h < 18) return '좋은 오후예요';
+    return '좋은 저녁이에요';
   };
-
-  const getTodayDate = () =>
-    currentTime.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long',
-    });
 
   const isActiveSession =
     latestSession &&
@@ -100,7 +82,6 @@ export default function DashboardPage() {
     100,
   );
 
-  // weeklyProgress를 MON~SUN 순으로 정렬 (서버 응답 순서 보장)
   const sortedWeeklyProgress = DAY_ORDER.map(
     key => stats?.weeklyProgress.find(d => d.dayOfWeek === key) ?? {
       dayOfWeek: key as DashboardStatsResponse['weeklyProgress'][number]['dayOfWeek'],
@@ -109,284 +90,305 @@ export default function DashboardPage() {
     },
   );
 
+  const maxWorkoutCount = Math.max(...sortedWeeklyProgress.map(d => d.workoutCount), 1);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* 환영 메시지 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {getGreeting()}, 운동러님! 💪
-          </h1>
-          <p className="text-gray-600">{getTodayDate()}</p>
-        </div>
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-blue-200 text-sm font-medium mb-1">
+                {currentTime.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+              </p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                {getGreeting()} 👋
+              </h1>
+              <p className="text-blue-200 text-sm mt-1">
+                {loading ? '' : stats
+                  ? `이번 주 ${stats.weeklyWorkouts}회 운동했어요`
+                  : '오늘도 파이팅하세요!'}
+              </p>
+            </div>
 
-        {/* 에러 배너 */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <i className="ri-error-warning-line mr-2"></i>
-            {error}
-          </div>
-        )}
-
-        {/* 오늘의 운동 */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">오늘의 운동</h2>
-          <Card className="p-6">
+            {/* Today's workout CTA */}
             {isActiveSession ? (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {latestSession.workoutProgramName}
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      {latestSession.status === 'PAUSED' ? '일시정지 중' : '진행 중'}
-                    </p>
-                  </div>
-                  <div className={`text-sm font-medium px-3 py-1 rounded-full ${
-                    latestSession.status === 'PAUSED'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {latestSession.status === 'PAUSED' ? '일시정지' : '진행 중'}
-                  </div>
+              <button
+                onClick={() => navigate('/workout/session')}
+                className="flex items-center gap-3 px-5 py-3 bg-white/15 hover:bg-white/25 border border-white/25 rounded-xl text-white transition-colors"
+              >
+                <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${latestSession?.status === 'PAUSED' ? 'bg-yellow-400' : 'bg-green-400'}`} />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">{latestSession?.workoutProgramName}</p>
+                  <p className="text-xs text-blue-200">{latestSession?.status === 'PAUSED' ? '일시정지 중 — 이어서 운동하기' : '진행 중 — 돌아가기'}</p>
                 </div>
-                <Button className="w-full" onClick={() => navigate('/workout/session')}>
-                  <i className="ri-play-line mr-2"></i>
-                  이어서 운동
-                </Button>
-              </>
+                <i className="ri-arrow-right-line ml-1 text-blue-200" />
+              </button>
             ) : (
-              <>
-                <div className="mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">운동을 시작해볼까요?</h3>
-                  <p className="text-gray-600 text-sm">
-                    프로그램을 선택하거나 새로 만들어 운동을 시작하세요
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <Link to="/workout" className="flex-1">
-                    <Button className="w-full">
-                      <i className="ri-play-line mr-2"></i>
-                      운동 시작
-                    </Button>
-                  </Link>
-                  <Link to="/programs">
-                    <Button variant="outline">
-                      <i className="ri-edit-line mr-2"></i>
-                      프로그램 관리
-                    </Button>
-                  </Link>
-                </div>
-              </>
+              <Link
+                to="/workout"
+                className="flex items-center gap-2 px-5 py-3 bg-white text-blue-700 font-semibold rounded-xl hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                <i className="ri-play-circle-fill text-lg" />
+                운동 시작하기
+              </Link>
             )}
-          </Card>
+          </div>
+
+          {error && (
+            <div className="mt-4 px-4 py-3 bg-red-500/20 border border-red-400/30 rounded-lg text-red-100 text-sm flex items-center gap-2">
+              <i className="ri-error-warning-line" />
+              {error}
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* 주요 통계 카드 4개 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
-              {loading ? '…' : (stats?.currentStreak ?? 0)}
+      {/* ── Stat Cards (float over hero) ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { icon: 'ri-fire-line',         value: loading ? '…' : stats?.currentStreak ?? 0,                      unit: '일',  label: '연속 운동',   color: 'text-orange-600', bg: 'bg-orange-50',  ring: 'ring-orange-100' },
+            { icon: 'ri-calendar-check-line',value: loading ? '…' : stats?.weeklyWorkouts ?? 0,                    unit: '회',  label: '이번 주',     color: 'text-blue-600',   bg: 'bg-blue-50',    ring: 'ring-blue-100'   },
+            { icon: 'ri-bar-chart-fill',     value: loading ? '…' : stats?.totalWorkouts ?? 0,                     unit: '회',  label: '총 운동',     color: 'text-violet-600', bg: 'bg-violet-50',  ring: 'ring-violet-100' },
+            { icon: 'ri-percent-line',       value: loading ? '…' : `${Math.round(stats?.averageCompletionRate ?? 0)}`, unit: '%', label: '평균 완료율', color: 'text-emerald-600',bg: 'bg-emerald-50', ring: 'ring-emerald-100'},
+          ].map(s => (
+            <div key={s.label} className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 ring-1 ${s.ring}`}>
+              <div className={`w-9 h-9 rounded-lg ${s.bg} flex items-center justify-center mb-3`}>
+                <i className={`${s.icon} ${s.color} text-lg`} />
+              </div>
+              <div className={`text-2xl font-bold ${s.color}`}>
+                {s.value}<span className="text-sm font-medium ml-0.5">{s.unit}</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
             </div>
-            <div className="text-sm text-gray-600">연속 운동일</div>
-          </Card>
-
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600 mb-1">
-              {loading ? '…' : (stats?.weeklyWorkouts ?? 0)}
-            </div>
-            <div className="text-sm text-gray-600">이번 주 운동</div>
-          </Card>
-
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
-              {loading ? '…' : (stats?.totalWorkouts ?? 0)}
-            </div>
-            <div className="text-sm text-gray-600">총 운동 횟수</div>
-          </Card>
-
-          <Card className="p-4 text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-1">
-              {loading ? '…' : `${Math.round(stats?.averageCompletionRate ?? 0)}%`}
-            </div>
-            <div className="text-sm text-gray-600">평균 완료율</div>
-          </Card>
+          ))}
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 space-y-6">
+
+        {/* ── Row: Weekly + Stats ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
           {/* 이번 주 운동 현황 */}
-          <Card className="p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">이번 주 운동 현황</h3>
-            <div className="space-y-3">
-              {sortedWeeklyProgress.map(dayData => {
-                const label = DAY_LABELS[dayData.dayOfWeek];
-                const isToday = dayData.dayOfWeek === TODAY_DAY_KEY;
-                return (
-                  <div key={dayData.dayOfWeek} className="flex items-center justify-between">
-                    <div className={`flex items-center gap-3 ${isToday ? 'font-medium text-blue-600' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                        dayData.workoutCount > 0
-                          ? 'bg-green-100 text-green-600'
-                          : isToday
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        {label}
-                      </div>
-                      <span className="text-sm">{label}요일</span>
-                    </div>
-                    <div className="text-right">
-                      {dayData.workoutCount > 0 ? (
-                        <>
-                          <div className="text-sm font-medium text-gray-900">{dayData.workoutCount}회</div>
-                          <div className="text-xs text-gray-500">{formatTime(dayData.totalDurationSeconds)}</div>
-                        </>
-                      ) : (
-                        <div className="text-sm text-gray-400">휴식</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <i className="ri-calendar-line text-blue-600" />
+              </div>
+              <h2 className="font-semibold text-gray-900">이번 주 현황</h2>
             </div>
-          </Card>
+            <div className="px-5 py-5">
+              {/* Bar chart */}
+              <div className="flex items-end gap-1.5 mb-2" style={{ height: '80px' }}>
+                {sortedWeeklyProgress.map(d => {
+                  const isToday = d.dayOfWeek === TODAY_DAY_KEY;
+                  const hasWorkout = d.workoutCount > 0;
+                  const barH = hasWorkout
+                    ? Math.max(Math.round((d.workoutCount / maxWorkoutCount) * 72), 12)
+                    : 4;
+                  return (
+                    <div
+                      key={d.dayOfWeek}
+                      className={`flex-1 rounded-md transition-all duration-500 ${
+                        hasWorkout
+                          ? isToday ? 'bg-blue-600' : 'bg-blue-400'
+                          : 'bg-gray-100'
+                      }`}
+                      style={{ height: `${barH}px` }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex gap-1.5">
+                {sortedWeeklyProgress.map(d => (
+                  <div key={d.dayOfWeek} className="flex-1 text-center">
+                    <span className={`text-xs font-medium ${d.dayOfWeek === TODAY_DAY_KEY ? 'text-blue-600' : 'text-gray-400'}`}>
+                      {DAY_LABELS[d.dayOfWeek]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 상세 리스트 */}
+              <div className="mt-4 space-y-2">
+                {sortedWeeklyProgress.filter(d => d.workoutCount > 0).length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-2">이번 주 운동 기록이 없습니다</p>
+                ) : (
+                  sortedWeeklyProgress.filter(d => d.workoutCount > 0).map(d => (
+                    <div key={d.dayOfWeek} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-600">
+                          {DAY_LABELS[d.dayOfWeek]}
+                        </div>
+                        <span className="text-gray-700">{DAY_LABELS[d.dayOfWeek]}요일</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-medium text-gray-900">{d.workoutCount}회</span>
+                        <span className="text-gray-400 ml-2">{formatTime(d.totalDurationSeconds)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* 통계 분석 */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">통계 분석</h3>
-              <Button variant="outline" size="sm" onClick={() => setShowStatsModal(true)}>
-                <i className="ri-bar-chart-line mr-1"></i>
-                상세보기
-              </Button>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <i className="ri-bar-chart-2-line text-violet-600" />
+                </div>
+                <h2 className="font-semibold text-gray-900">통계 분석</h2>
+              </div>
+              <button
+                onClick={() => setShowStatsModal(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                상세보기 <i className="ri-arrow-right-line" />
+              </button>
             </div>
-            <div className="space-y-4">
+            <div className="px-5 py-5 space-y-5">
+              {/* 이번 달 목표 */}
               <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>이번 달 목표</span>
-                  <span>{stats?.monthlyWorkouts ?? 0}/{monthlyGoal}회</span>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600 font-medium">이번 달 목표</span>
+                  <span className="font-semibold text-gray-900">{stats?.monthlyWorkouts ?? 0} <span className="text-gray-400 font-normal">/ {monthlyGoal}회</span></span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-700"
                     style={{ width: `${monthlyProgress}%` }}
-                  ></div>
+                  />
                 </div>
+                <p className="text-xs text-gray-400 mt-1 text-right">{monthlyProgress}% 달성</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-900">
-                    {loading ? '…' : (stats?.favoriteBodyPart ?? '-')}
+              {/* 개인 기록 3개 */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: 'ri-heart-pulse-line', color: 'text-red-500',    bg: 'bg-red-50',    value: stats?.favoriteBodyPart ?? '-', label: '선호 부위' },
+                  { icon: 'ri-timer-flash-line', color: 'text-amber-500',  bg: 'bg-amber-50',  value: loading ? '…' : formatTime(stats?.longestWorkoutSeconds ?? 0), label: '최장 운동' },
+                  { icon: 'ri-checkbox-circle-line', color: 'text-emerald-500', bg: 'bg-emerald-50', value: loading ? '…' : `${Math.round(stats?.averageCompletionRate ?? 0)}%`, label: '완료율' },
+                ].map(item => (
+                  <div key={item.label} className={`${item.bg} rounded-xl p-3 text-center`}>
+                    <i className={`${item.icon} ${item.color} text-lg mb-1 block`} />
+                    <div className={`text-sm font-bold ${item.color}`}>{item.value}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{item.label}</div>
                   </div>
-                  <div className="text-xs text-gray-600">선호 부위</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-900">
-                    {loading ? '…' : formatTime(stats?.longestWorkoutSeconds ?? 0)}
-                  </div>
-                  <div className="text-xs text-gray-600">최장 운동</div>
-                </div>
+                ))}
               </div>
             </div>
-          </Card>
-        </div>
-
-        {/* 빠른 액션 */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">빠른 액션</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link to="/workout">
-              <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <i className="ri-play-line text-xl text-blue-600"></i>
-                </div>
-                <div className="font-medium text-gray-900">운동 시작</div>
-              </Card>
-            </Link>
-
-            <Link to="/programs">
-              <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <i className="ri-settings-line text-xl text-green-600"></i>
-                </div>
-                <div className="font-medium text-gray-900">프로그램 관리</div>
-              </Card>
-            </Link>
-
-            <Link to="/history">
-              <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <i className="ri-history-line text-xl text-purple-600"></i>
-                </div>
-                <div className="font-medium text-gray-900">운동일지</div>
-              </Card>
-            </Link>
-
-            <Card className="p-4 text-center hover:shadow-md transition-shadow cursor-pointer">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <i className="ri-trophy-line text-xl text-orange-600"></i>
-              </div>
-              <div className="font-medium text-gray-900">목표 설정</div>
-            </Card>
           </div>
         </div>
 
-        {/* 최근 운동 기록 */}
+        {/* ── Quick Actions ── */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">최근 운동 기록</h2>
-            <Link to="/history">
-              <Button variant="outline" size="sm">
-                전체보기
-                <i className="ri-arrow-right-s-line ml-1"></i>
-              </Button>
+          <h2 className="text-base font-semibold text-gray-700 mb-3">빠른 액션</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { to: '/workout',  icon: 'ri-play-circle-line',  label: '운동 시작',    bg: 'bg-gradient-to-br from-blue-500 to-blue-600',     text: 'text-white', sub: '프로그램 선택' },
+              { to: '/programs', icon: 'ri-list-settings-line', label: '프로그램 관리', bg: 'bg-gradient-to-br from-emerald-500 to-emerald-600', text: 'text-white', sub: '루틴 만들기' },
+              { to: '/history',  icon: 'ri-history-line',       label: '운동일지',     bg: 'bg-gradient-to-br from-violet-500 to-violet-600',   text: 'text-white', sub: '기록 보기' },
+              { to: '/profile',  icon: 'ri-trophy-line',        label: '내 정보',      bg: 'bg-gradient-to-br from-amber-400 to-orange-500',    text: 'text-white', sub: '프로필 관리' },
+            ].map(action => (
+              <Link key={action.to} to={action.to}>
+                <div className={`${action.bg} rounded-2xl p-5 hover:opacity-90 transition-opacity cursor-pointer shadow-sm`}>
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+                    <i className={`${action.icon} text-xl ${action.text}`} />
+                  </div>
+                  <div className={`font-semibold text-sm ${action.text}`}>{action.label}</div>
+                  <div className="text-xs text-white/70 mt-0.5">{action.sub}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Recent Workouts ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-700">최근 운동 기록</h2>
+            <Link
+              to="/history"
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              전체보기 <i className="ri-arrow-right-s-line" />
             </Link>
           </div>
 
           <div className="space-y-3">
             {loading ? (
               [1, 2, 3].map(i => (
-                <Card key={i} className="p-4">
-                  <div className="animate-pulse flex items-center justify-between">
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-gray-100 rounded-xl flex-shrink-0" />
                     <div className="flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-                      <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                      <div className="h-4 bg-gray-100 rounded w-1/3 mb-2" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
                     </div>
                   </div>
-                </Card>
+                </div>
               ))
             ) : !stats || stats.recentWorkouts.length === 0 ? (
-              <Card className="p-6 text-center text-gray-500">
-                아직 운동 기록이 없습니다. 첫 번째 운동을 시작해보세요!
-              </Card>
+              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <i className="ri-run-line text-2xl text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-sm">아직 운동 기록이 없습니다</p>
+                <Link to="/workout">
+                  <button className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                    첫 운동 시작하기
+                  </button>
+                </Link>
+              </div>
             ) : (
               stats.recentWorkouts.map(workout => {
-                const completion =
-                  workout.totalSets > 0
-                    ? Math.round((workout.completedSets / workout.totalSets) * 100)
-                    : 0;
+                const completion = workout.totalSets > 0
+                  ? Math.round((workout.completedSets / workout.totalSets) * 100)
+                  : 0;
                 return (
-                  <Card key={workout.id} className="p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{workout.programName}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                  <div key={workout.id} className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <i className="ri-dumbbell-line text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{workout.programName}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
                           <span>{formatDate(workout.date)}</span>
+                          <span>·</span>
                           <span>{formatTime(workout.totalDurationSeconds)}</span>
-                          <span className="text-green-600 font-medium">{completion}% 완료</span>
                         </div>
                       </div>
-                      <Link to={`/history/${workout.id}`}>
-                        <Button variant="outline" size="sm">
-                          상세보기
-                        </Button>
-                      </Link>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right hidden sm:block">
+                          <div className={`text-sm font-bold ${completion >= 80 ? 'text-emerald-600' : completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {completion}%
+                          </div>
+                          <div className="text-xs text-gray-400">완료율</div>
+                        </div>
+                        <Link to={`/history/${workout.id}`}>
+                          <div className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-colors">
+                            <i className="ri-arrow-right-s-line text-gray-500" />
+                          </div>
+                        </Link>
+                      </div>
                     </div>
-                  </Card>
+                    {/* Completion bar */}
+                    <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${completion >= 80 ? 'bg-emerald-500' : completion >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                        style={{ width: `${completion}%` }}
+                      />
+                    </div>
+                  </div>
                 );
               })
             )}
@@ -394,120 +396,118 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 상세 통계 모달 */}
+      {/* ── Stats Modal ── */}
       {showStatsModal && stats && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">상세 통계 분석</h2>
-                <button
-                  onClick={() => setShowStatsModal(false)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <i className="ri-close-line"></i>
-                </button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white rounded-t-2xl px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <i className="ri-bar-chart-line text-violet-600" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">상세 통계 분석</h2>
               </div>
+              <button
+                onClick={() => setShowStatsModal(false)}
+                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <i className="ri-close-line text-lg" />
+              </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 space-y-8">
               {/* 전체 통계 요약 */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 mb-1">{stats.totalWorkouts}</div>
-                  <div className="text-sm text-gray-600">총 운동 횟수</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600 mb-1">{formatTime(stats.totalDurationSeconds)}</div>
-                  <div className="text-sm text-gray-600">총 운동 시간</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600 mb-1">{stats.totalCompletedSets}</div>
-                  <div className="text-sm text-gray-600">총 완료 세트</div>
-                </div>
-                <div className="text-center p-4 bg-orange-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600 mb-1">{stats.currentStreak}일</div>
-                  <div className="text-sm text-gray-600">연속 운동일</div>
-                </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { icon: 'ri-bar-chart-fill',  color: 'text-blue-600',   bg: 'bg-blue-50',   value: stats.totalWorkouts,                          unit: '회',  label: '총 운동 횟수' },
+                  { icon: 'ri-timer-line',       color: 'text-emerald-600',bg: 'bg-emerald-50',value: formatTime(stats.totalDurationSeconds),        unit: '',    label: '총 운동 시간' },
+                  { icon: 'ri-repeat-line',      color: 'text-violet-600', bg: 'bg-violet-50', value: stats.totalCompletedSets,                     unit: '세트',label: '총 완료 세트' },
+                  { icon: 'ri-fire-line',        color: 'text-orange-600', bg: 'bg-orange-50', value: stats.currentStreak,                          unit: '일',  label: '연속 운동일' },
+                ].map(s => (
+                  <div key={s.label} className={`${s.bg} rounded-xl p-4 text-center`}>
+                    <i className={`${s.icon} ${s.color} text-xl mb-2 block`} />
+                    <div className={`text-xl font-bold ${s.color}`}>{s.value}<span className="text-sm ml-0.5">{s.unit}</span></div>
+                    <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+                  </div>
+                ))}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* 운동 부위별 통계 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* 운동 부위별 */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">운동 부위별 분석</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">운동 부위별 분석</h3>
                   {stats.bodyPartStats.length === 0 ? (
-                    <p className="text-sm text-gray-500">운동 부위 데이터가 없습니다.</p>
+                    <p className="text-sm text-gray-400">운동 부위 데이터가 없습니다.</p>
                   ) : (
                     <div className="space-y-3">
-                      {stats.bodyPartStats.map((stat, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full ${
-                              index === 0 ? 'bg-blue-500' :
-                              index === 1 ? 'bg-green-500' :
-                              index === 2 ? 'bg-purple-500' : 'bg-orange-500'
-                            }`}></div>
-                            <span className="text-sm font-medium text-gray-900">{stat.bodyPart}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  index === 0 ? 'bg-blue-500' :
-                                  index === 1 ? 'bg-green-500' :
-                                  index === 2 ? 'bg-purple-500' : 'bg-orange-500'
-                                }`}
-                                style={{ width: `${stat.percentage}%` }}
-                              ></div>
+                      {stats.bodyPartStats.map((stat, i) => {
+                        const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-red-500'];
+                        const textColors = ['text-blue-600', 'text-emerald-600', 'text-violet-600', 'text-amber-600', 'text-red-600'];
+                        return (
+                          <div key={i}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className={`font-medium ${textColors[i % textColors.length]}`}>{stat.bodyPart}</span>
+                              <span className="text-gray-500">{stat.percentage}%</span>
                             </div>
-                            <span className="text-sm text-gray-600 w-12 text-right">{stat.percentage}%</span>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${stat.percentage}%` }} />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
                 {/* 월별 운동 추이 */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">월별 운동 추이</h3>
-                  <div className="space-y-3">
-                    {stats.monthlyStats.map((stat, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-4">월별 운동 추이</h3>
+                  <div className="space-y-2">
+                    {stats.monthlyStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                         <div>
-                          <div className="font-medium text-gray-900">{stat.month}월</div>
-                          <div className="text-sm text-gray-600">{stat.workoutCount}회 운동</div>
+                          <span className="font-semibold text-gray-900">{stat.month}월</span>
+                          <span className="text-sm text-gray-500 ml-2">{stat.workoutCount}회</span>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium text-gray-900">{formatTime(stat.totalDurationSeconds)}</div>
-                          <div className="text-sm text-gray-600">총 시간</div>
-                        </div>
+                        <span className="text-sm font-medium text-gray-700">{formatTime(stat.totalDurationSeconds)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* 주간 운동 패턴 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">주간 운동 패턴</h3>
-                <div className="grid grid-cols-7 gap-2">
-                  {sortedWeeklyProgress.map(dayData => (
-                    <div key={dayData.dayOfWeek} className="text-center">
-                      <div className="text-xs text-gray-600 mb-2">{DAY_LABELS[dayData.dayOfWeek]}</div>
-                      <div className={`h-20 rounded-lg flex items-end justify-center p-2 ${
-                        dayData.workoutCount > 0 ? 'bg-blue-100' : 'bg-gray-100'
-                      }`}>
-                        <div
-                          className={`w-full rounded ${
-                            dayData.workoutCount > 0 ? 'bg-blue-500' : 'bg-gray-300'
-                          }`}
-                          style={{ height: `${Math.max(dayData.workoutCount * 30, 4)}px` }}
-                        ></div>
+              {/* 주간 패턴 바 */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-4">주간 운동 패턴</h3>
+                <div className="flex items-end gap-2 mb-2" style={{ height: '88px' }}>
+                  {sortedWeeklyProgress.map(d => {
+                    const isToday = d.dayOfWeek === TODAY_DAY_KEY;
+                    const barH = d.workoutCount > 0
+                      ? Math.max(Math.round((d.workoutCount / maxWorkoutCount) * 80), 12)
+                      : 4;
+                    return (
+                      <div
+                        key={d.dayOfWeek}
+                        className={`flex-1 rounded-md transition-all duration-700 ${
+                          d.workoutCount > 0
+                            ? isToday ? 'bg-blue-600' : 'bg-blue-400'
+                            : 'bg-gray-100'
+                        }`}
+                        style={{ height: `${barH}px` }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  {sortedWeeklyProgress.map(d => (
+                    <div key={d.dayOfWeek} className="flex-1 text-center">
+                      <div className={`text-xs font-medium ${d.dayOfWeek === TODAY_DAY_KEY ? 'text-blue-600' : 'text-gray-400'}`}>
+                        {DAY_LABELS[d.dayOfWeek]}
                       </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {dayData.workoutCount > 0 ? `${dayData.workoutCount}회` : '휴식'}
-                      </div>
+                      {d.workoutCount > 0 && (
+                        <div className="text-xs text-gray-400">{d.workoutCount}회</div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -515,20 +515,19 @@ export default function DashboardPage() {
 
               {/* 개인 기록 */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">개인 기록</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="p-4 bg-yellow-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-yellow-600 mb-1">{formatTime(stats.longestWorkoutSeconds)}</div>
-                    <div className="text-sm text-gray-600">최장 운동 시간</div>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-green-600 mb-1">{Math.round(stats.averageCompletionRate)}%</div>
-                    <div className="text-sm text-gray-600">평균 완료율</div>
-                  </div>
-                  <div className="p-4 bg-purple-50 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-purple-600 mb-1">{stats.favoriteBodyPart ?? '-'}</div>
-                    <div className="text-sm text-gray-600">선호 운동 부위</div>
-                  </div>
+                <h3 className="font-semibold text-gray-900 mb-4">개인 기록</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { icon: 'ri-timer-flash-line', color: 'text-amber-600', bg: 'bg-amber-50', value: formatTime(stats.longestWorkoutSeconds), label: '최장 운동 시간' },
+                    { icon: 'ri-checkbox-circle-line', color: 'text-emerald-600', bg: 'bg-emerald-50', value: `${Math.round(stats.averageCompletionRate)}%`, label: '평균 완료율' },
+                    { icon: 'ri-heart-pulse-line', color: 'text-violet-600', bg: 'bg-violet-50', value: stats.favoriteBodyPart ?? '-', label: '선호 운동 부위' },
+                  ].map(item => (
+                    <div key={item.label} className={`${item.bg} rounded-xl p-4 text-center`}>
+                      <i className={`${item.icon} ${item.color} text-2xl mb-2 block`} />
+                      <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
+                      <div className="text-xs text-gray-500 mt-1">{item.label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

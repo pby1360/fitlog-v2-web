@@ -22,14 +22,34 @@ export default function HistoryPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<'1w' | '1m' | '3m' | '6m' | 'all'>('1m');
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const fetchListPage = async (page: number) => {
+  const PERIOD_OPTIONS: { value: '1w' | '1m' | '3m' | '6m' | 'all'; label: string; days?: number }[] = [
+    { value: '1w', label: '1주일', days: 7 },
+    { value: '1m', label: '1개월', days: 30 },
+    { value: '3m', label: '3개월', days: 90 },
+    { value: '6m', label: '6개월', days: 180 },
+    { value: 'all', label: '전체' },
+  ];
+
+  const getDateRange = (period: typeof selectedPeriod) => {
+    if (period === 'all') return {};
+    const end = new Date();
+    const start = new Date();
+    const days = PERIOD_OPTIONS.find(o => o.value === period)!.days!;
+    start.setDate(start.getDate() - days);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    return { startDate: fmt(start), endDate: fmt(end) };
+  };
+
+  const fetchListPage = async (page: number, period = selectedPeriod) => {
     setLoading(true);
     setError(null);
     try {
-      const result: WorkoutLogPage = await getWorkoutLogs(page);
+      const { startDate, endDate } = getDateRange(period);
+      const result: WorkoutLogPage = await getWorkoutLogs(page, 10, startDate, endDate);
       setWorkoutRecords(result.logs);
       setCurrentPage(result.currentPage);
       setTotalPages(result.totalPages);
@@ -56,8 +76,8 @@ export default function HistoryPage() {
   };
 
   useEffect(() => {
-    fetchListPage(0);
-  }, []);
+    fetchListPage(0, selectedPeriod);
+  }, [selectedPeriod]);
 
   // URL 파라미터에 따라 상세 화면 표시
   useEffect(() => {
@@ -359,6 +379,26 @@ export default function HistoryPage() {
             </div>
           </div>
 
+          {/* 조회 기간 선택 */}
+          <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
+            <span className="text-sm text-gray-600 font-medium whitespace-nowrap">조회 기간</span>
+            <div className="flex gap-1">
+              {PERIOD_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedPeriod(option.value)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                    selectedPeriod === option.value
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* 통계 요약 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <Card className="p-3 sm:p-4 text-center">
@@ -370,25 +410,23 @@ export default function HistoryPage() {
 
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-green-600 mb-1">
-                {formatTime(workoutRecords.reduce((total, record) => total + record.totalTime, 0))}
+                {formatTime(totalDurationSeconds)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">이 페이지 운동 시간</div>
+              <div className="text-xs sm:text-sm text-gray-600">총 운동 시간</div>
             </Card>
 
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-purple-600 mb-1">
-                {workoutRecords.reduce((total, record) => total + record.completedSets, 0)}
+                {totalCompletedSets}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">이 페이지 완료 세트</div>
+              <div className="text-xs sm:text-sm text-gray-600">완료 세트</div>
             </Card>
 
             <Card className="p-3 sm:p-4 text-center">
               <div className="text-lg sm:text-2xl font-bold text-orange-600 mb-1">
-                {workoutRecords.length > 0
-                  ? Math.round(workoutRecords.reduce((total, record) => total + getCompletionRate(record), 0) / workoutRecords.length)
-                  : 0}%
+                {Math.round(averageCompletionRate)}%
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">이 페이지 완료율</div>
+              <div className="text-xs sm:text-sm text-gray-600">평균 완료율</div>
             </Card>
           </div>
 
