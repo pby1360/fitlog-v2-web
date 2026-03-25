@@ -68,20 +68,20 @@ export default defineConfig({
     // 2. PWA 플러그인 설정 추가
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'], // public 폴더에 있는 정적 파일들
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'fitlog_logo_192.png', 'fitlog_logo_512.png'], // public 폴더에 있는 정적 파일들
       manifest: {
-        name: '내 앱 이름', // 실제 앱 이름으로 변경
-        short_name: '앱 이름',
-        description: '앱 설명',
+        name: 'fitlog', // 실제 앱 이름으로 변경
+        short_name: 'fitlog',
+        description: 'fitness log app',
         theme_color: '#ffffff',
         icons: [
           {
-            src: 'pwa-192x192.png', // public 폴더에 이 이미지들이 꼭 있어야 합니다!
+            src: '/fitlog_logo_192.png', // public 폴더에 이 이미지들이 꼭 있어야 합니다!
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/fitlog_logo_512.png',
             sizes: '512x512',
             type: 'image/png'
           }
