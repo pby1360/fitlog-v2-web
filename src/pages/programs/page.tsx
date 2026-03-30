@@ -58,7 +58,7 @@ export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedBodyParts, setSelectedBodyParts] = useState<string[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -68,18 +68,18 @@ export default function ProgramsPage() {
   interface CurrentExerciseSet {
     id: string; // 클라이언트 측 임시 ID
     exerciseId: number; // 실제 운동 ID
-    sets: { 
+    sets: {
       id: string; // 클라이언트 측 임시 ID
-      reps: number; 
-      weight?: number; 
-      restTime: number; 
-      memo?: string; 
+      reps: number;
+      weight?: number;
+      restTime: number;
+      memo?: string;
     }[];
   }
   const [programExercises, setProgramExercises] = useState<CurrentExerciseSet[]>([]);
   const [programName, setProgramName] = useState('');
   const [programDescription, setProgramDescription] = useState('');
-  
+
   // 모달 상태
   const [showAddBodyPartModal, setShowAddBodyPartModal] = useState(false);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
@@ -114,7 +114,7 @@ export default function ProgramsPage() {
     // 서버에서 받은 ProgramResponse 구조를 CurrentExerciseSet[]으로 변환
     // 이 때, exerciseId는 ProgramExerciseResponse의 workoutId를 사용하고,
     // sets의 id는 ProgramSetResponse의 id를 사용합니다.
-    const mappedProgramExercises: CurrentExerciseSet[] = program.parts.flatMap(part => 
+    const mappedProgramExercises: CurrentExerciseSet[] = program.parts.flatMap(part =>
       part.exercises.map(exercise => ({
         id: exercise.id.toString(), // 서버측 ProgramExercise ID를 클라이언트 임시 ID로 사용
         exerciseId: exercise.workoutId, // 실제 운동 ID
@@ -272,8 +272,8 @@ export default function ProgramsPage() {
       const lastSet = pe.sets.length > 0 ? pe.sets[pe.sets.length - 1] : null;
 
       // 3. 값 할당 (이전 세트가 있으면 그 값을, 없으면 기본값 사용)
-      const nextReps = lastSet ? lastSet.reps : 10; 
-      const nextWeight = lastSet ? lastSet.weight : undefined; 
+      const nextReps = lastSet ? lastSet.reps : 10;
+      const nextWeight = lastSet ? lastSet.weight : undefined;
       const nextRestTime = lastSet ? lastSet.restTime : 60;
 
       return {
@@ -282,7 +282,7 @@ export default function ProgramsPage() {
           ...pe.sets,
           {
             // id 생성 로직은 유지 (uuid 라이브러리 사용 권장하나 현재 방식도 무방)
-            id: Date.now().toString() + '_' + (pe.sets.length + 1), 
+            id: Date.now().toString() + '_' + (pe.sets.length + 1),
             reps: nextReps,      // 이전 세트 값 적용
             weight: nextWeight,  // 이전 세트 값 적용
             restTime: nextRestTime // 이전 세트 값 적용
@@ -293,19 +293,19 @@ export default function ProgramsPage() {
 };
 
   const removeSetFromExercise = (exerciseSetId: string, setId: string) => {
-    setProgramExercises(programExercises.map(pe => 
-      pe.id === exerciseSetId 
+    setProgramExercises(programExercises.map(pe =>
+      pe.id === exerciseSetId
         ? { ...pe, sets: pe.sets.filter(set => set.id !== setId) }
         : pe
     ));
   };
 
   const updateSet = (exerciseSetId: string, setId: string, field: keyof CurrentExerciseSet['sets'][0], value: number | string) => {
-    setProgramExercises(programExercises.map(pe => 
-      pe.id === exerciseSetId 
+    setProgramExercises(programExercises.map(pe =>
+      pe.id === exerciseSetId
         ? {
             ...pe,
-            sets: pe.sets.map(set => 
+            sets: pe.sets.map(set =>
               set.id === setId ? { ...set, [field]: value } : set
             )
           }
@@ -389,7 +389,7 @@ export default function ProgramsPage() {
 
   const getTotalSets = (program: Program) => {
     // exercises 대신 parts의 exercises 내부 sets 개수를 합산
-    return program.parts.reduce((total, part) => 
+    return program.parts.reduce((total, part) =>
       total + part.exercises.reduce((exTotal, ex) => exTotal + ex.sets.length, 0)
     , 0);
   };
@@ -431,7 +431,7 @@ export default function ProgramsPage() {
 
   const handleDrop = (e: React.DragEvent, targetExerciseId: number) => {
     e.preventDefault();
-    
+
     if (!draggedExerciseId || draggedExerciseId === targetExerciseId) {
       setDraggedExerciseId(null);
       return;
@@ -470,23 +470,23 @@ export default function ProgramsPage() {
   // 프로그램 목록 화면
   if (view === 'list') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
-        
+
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Link to="/" className="hover:text-blue-600">홈</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-600 mb-2">
+              <Link to="/" className="hover:text-blue-600 dark:hover:text-indigo-400">홈</Link>
               <i className="ri-arrow-right-s-line"></i>
               <span>프로그램</span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">운동 프로그램</h1>
-                <p className="text-gray-600 mt-1">나만의 운동 루틴을 관리하세요</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">운동 프로그램</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">나만의 운동 루틴을 관리하세요</p>
               </div>
-              <Button onClick={startCreateProgram} className="whitespace-nowrap">
+              <Button onClick={startCreateProgram} className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
                 <i className="ri-add-line mr-2"></i>
                 새 프로그램 만들기
               </Button>
@@ -495,33 +495,33 @@ export default function ProgramsPage() {
 
           {isLoading ? (
             <div className="min-h-[200px] flex items-center justify-center">
-              <div className="w-10 h-10 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+              <div className="w-10 h-10 border-4 border-blue-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : programs.length === 0 ? (
-            <Card className="p-8 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-fitness-line text-2xl text-gray-400"></i>
+            <div className="p-8 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5 rounded-2xl">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-fitness-line text-2xl text-gray-400 dark:text-gray-600"></i>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">아직 프로그램이 없습니다</h3>
-              <p className="text-gray-600 mb-4">첫 번째 운동 프로그램을 만들어보세요</p>
-              <Button onClick={startCreateProgram}>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">아직 프로그램이 없습니다</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">첫 번째 운동 프로그램을 만들어보세요</p>
+              <Button onClick={startCreateProgram} className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
                 <i className="ri-add-line mr-2"></i>
                 프로그램 만들기
               </Button>
-            </Card>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {programs.map((program) => (
-                <Card key={program.id} className="p-6 hover:shadow-md transition-shadow">
+                <div key={program.id} className="p-6 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/8 rounded-2xl hover:border-gray-300 dark:hover:border-white/15 transition-all">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{program.name}</h3>
-                      <p className="text-gray-600 text-sm line-clamp-2">{program.description}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{program.name}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">{program.description}</p>
                     </div>
                     <div className="flex gap-1 ml-4">
                       <button
                         onClick={() => startEditProgram(program)}
-                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors"
                       >
                         <i className="ri-edit-line text-sm"></i>
                       </button>
@@ -530,14 +530,14 @@ export default function ProgramsPage() {
                           setDeletingProgramId(program.id);
                           setShowDeleteModal(true);
                         }}
-                        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-red-400/60 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                       >
                         <i className="ri-delete-bin-line text-sm"></i>
                       </button>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
+
+                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
                     <div className="flex items-center gap-1">
                       <i className="ri-list-check-line"></i>
                       <span>{getExerciseCount(program)}개 운동</span>
@@ -553,19 +553,19 @@ export default function ProgramsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                       onClick={() => startEditProgram(program)}
                     >
                       수정
                     </Button>
-                    <Button size="sm" className="flex-1">
+                    <Button size="sm" className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
                       운동 시작
                     </Button>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           )}
@@ -573,21 +573,21 @@ export default function ProgramsPage() {
 
         {/* 삭제 확인 모달 */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">프로그램 삭제</h3>
-              <p className="text-gray-600 mb-6">정말로 이 프로그램을 삭제하시겠습니까? 삭제된 프로그램은 복구할 수 없습니다.</p>
+          <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">프로그램 삭제</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">정말로 이 프로그램을 삭제하시겠습니까? 삭제된 프로그램은 복구할 수 없습니다.</p>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1"
+                  className="flex-1 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                 >
                   취소
                 </Button>
-                <Button 
+                <Button
                   onClick={() => deletingProgramId && handleDeleteProgram(deletingProgramId)}
-                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  className="flex-1 border border-red-500/20 text-red-400 hover:bg-red-500/10 bg-transparent"
                 >
                   삭제
                 </Button>
@@ -601,16 +601,16 @@ export default function ProgramsPage() {
 
   // 프로그램 생성/수정 화면
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
       <Header />
-      
+
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* 헤더 */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-            <button 
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-600 mb-2">
+            <button
               onClick={() => setView('list')}
-              className="hover:text-blue-600"
+              className="hover:text-blue-600 dark:hover:text-indigo-400"
             >
               프로그램
             </button>
@@ -619,15 +619,15 @@ export default function ProgramsPage() {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {view === 'edit' ? '프로그램 수정' : '운동 프로그램 생성'}
               </h1>
-              <p className="text-gray-600 mt-1">나만의 운동 루틴을 만들어보세요</p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">나만의 운동 루틴을 만들어보세요</p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setView('list')}
-              className="whitespace-nowrap"
+              className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
             >
               <i className="ri-arrow-left-line mr-2"></i>
               목록으로
@@ -641,18 +641,18 @@ export default function ProgramsPage() {
             {[1, 2, 3, 4].map((step) => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  currentStep >= step ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-600'
                 }`}>
                   {step}
                 </div>
-                <div className={`ml-2 text-sm ${currentStep >= step ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                <div className={`ml-2 text-sm ${currentStep >= step ? 'text-blue-600 dark:text-indigo-400 font-medium' : 'text-gray-400 dark:text-gray-600'}`}>
                   {step === 1 && '프로그램 정보'}
                   {step === 2 && '운동 부위'}
                   {step === 3 && '운동 항목'}
                   {step === 4 && '세트 설정'}
                 </div>
                 {step < 4 && (
-                  <div className={`w-12 h-0.5 mx-4 ${currentStep > step ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+                  <div className={`w-12 h-0.5 mx-4 ${currentStep > step ? 'bg-gradient-to-r from-indigo-500 to-violet-600' : 'bg-gray-100 dark:bg-white/5'}`}></div>
                 )}
               </div>
             ))}
@@ -660,11 +660,11 @@ export default function ProgramsPage() {
         </div>
 
         {/* 단계별 컨텐츠 */}
-        <Card className="p-6">
+        <div className="p-6 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/8 rounded-2xl">
           {/* 1단계: 프로그램 정보 */}
           {currentStep === 1 && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">프로그램 기본 정보</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">프로그램 기본 정보</h2>
               <div className="space-y-4">
                 <Input
                   label="프로그램 이름"
@@ -673,22 +673,23 @@ export default function ProgramsPage() {
                   placeholder="예: 상체 집중 루틴"
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                     프로그램 설명
                   </label>
                   <textarea
                     value={programDescription}
                     onChange={(e) => setProgramDescription(e.target.value)}
                     placeholder="프로그램에 대한 간단한 설명을 입력하세요"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     rows={3}
                   />
                 </div>
               </div>
               <div className="flex justify-end mt-6">
-                <Button 
+                <Button
                   onClick={() => setCurrentStep(2)}
                   disabled={!programName.trim()}
+                  className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   다음 단계
                   <i className="ri-arrow-right-line ml-2"></i>
@@ -701,27 +702,28 @@ export default function ProgramsPage() {
           {currentStep === 2 && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">운동 부위 선택</h2>
-                <Button 
-                  variant="outline" 
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">운동 부위 선택</h2>
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowAddBodyPartModal(true)}
+                  className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                 >
                   <i className="ri-add-line mr-1"></i>
                   부위 추가
                 </Button>
               </div>
-              
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
+
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-indigo-500/10 border border-blue-200 dark:border-indigo-500/20 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-indigo-300">
                   <i className="ri-information-line mr-1"></i>
-                  여러 운동 부위를 선택할 수 있습니다. 선택된 부위: 
+                  여러 운동 부위를 선택할 수 있습니다. 선택된 부위:
                   <span className="font-medium ml-1">
                     {selectedBodyParts.length > 0 ? selectedBodyParts.join(', ') : '없음'}
                   </span>
                 </p>
               </div>
-              
+
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                 {bodyParts.map((bodyPart) => (
                   <div key={bodyPart.id} className="relative group">
@@ -729,8 +731,8 @@ export default function ProgramsPage() {
                       onClick={() => toggleBodyPart(bodyPart.name)}
                       className={`w-full p-3 rounded-lg border-2 transition-colors ${
                         selectedBodyParts.includes(bodyPart.name)
-                          ? 'border-blue-600 bg-blue-50 text-blue-600'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-blue-500 dark:border-indigo-500 bg-blue-50 dark:bg-indigo-500/10 text-blue-700 dark:text-indigo-300'
+                          : 'border-gray-200 dark:border-white/8 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-white/15 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center justify-center gap-2">
@@ -742,7 +744,7 @@ export default function ProgramsPage() {
                     </button>
                     <button
                       onClick={() => handleDeleteBodyPart(bodyPart.id)}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <i className="ri-close-line text-xs"></i>
                     </button>
@@ -751,13 +753,14 @@ export default function ProgramsPage() {
               </div>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                <Button variant="outline" onClick={() => setCurrentStep(1)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                   <i className="ri-arrow-left-line mr-2"></i>
                   이전 단계
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setCurrentStep(3)}
                   disabled={selectedBodyParts.length === 0}
+                  className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   다음 단계
                   <i className="ri-arrow-right-line ml-2"></i>
@@ -770,12 +773,13 @@ export default function ProgramsPage() {
           {currentStep === 3 && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">운동 항목 선택</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">운동 항목 선택</h2>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowAddExerciseModal(true)}
+                    className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                   >
                     <i className="ri-add-line mr-1"></i>
                     운동 추가
@@ -783,8 +787,8 @@ export default function ProgramsPage() {
                 </div>
               </div>
 
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-indigo-500/10 border border-blue-200 dark:border-indigo-500/20 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-indigo-300">
                   선택된 부위별로 운동을 추가하세요: <span className="font-medium">{selectedBodyParts.join(', ')}</span>
                 </p>
               </div>
@@ -794,19 +798,19 @@ export default function ProgramsPage() {
                 {selectedBodyParts.map((bodyPart) => {
                   const bodyPartExercises = exercises.filter(ex => ex.bodyPart === bodyPart);
                   return (
-                    <div key={bodyPart} className="border rounded-lg p-4 bg-white">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <span className="w-3 h-3 bg-blue-600 rounded-full"></span>
+                    <div key={bodyPart} className="border border-gray-200 dark:border-white/8 rounded-lg p-4 bg-gray-50 dark:bg-[#0a0a0a]">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <span className="w-3 h-3 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full"></span>
                         {bodyPart} 운동
                       </h3>
-                      
+
                       {bodyPartExercises.length === 0 ? (
-                        <div className="text-center py-4 text-gray-500">
+                        <div className="text-center py-4 text-gray-400 dark:text-gray-600">
                           <p className="text-sm">이 부위에 등록된 운동이 없습니다.</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="mt-2"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                             onClick={() => {
                               const part = bodyParts.find(p => p.name === bodyPart);
                               if (part) {
@@ -821,14 +825,14 @@ export default function ProgramsPage() {
                       ) : (
                         <div className="space-y-2 max-h-48 overflow-y-auto">
                           {bodyPartExercises.map((exercise) => (
-                            <div key={exercise.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                              <span className="font-medium">{exercise.name}</span>
+                            <div key={exercise.id} className="flex items-center justify-between p-3 border border-gray-100 dark:border-white/5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                              <span className="font-medium text-gray-900 dark:text-white">{exercise.name}</span>
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   onClick={() => addExerciseToProgram(exercise)}
                                   disabled={programExercises.some(pe => pe.exerciseId === exercise.id)}
-                                  className="whitespace-nowrap"
+                                  className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0 disabled:opacity-40"
                                 >
                                   {programExercises.some(pe => pe.exerciseId === exercise.id) ? (
                                     <>
@@ -851,7 +855,7 @@ export default function ProgramsPage() {
                                     setNewExerciseBodyPart(exercise.bodyPartId);
                                     setShowEditExerciseModal(true);
                                   }}
-                                  className="whitespace-nowrap"
+                                  className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                                 >
                                   <i className="ri-edit-line"></i>
                                 </Button>
@@ -859,7 +863,7 @@ export default function ProgramsPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleDeleteExercise(exercise.id)}
-                                  className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                                  className="text-red-400/60 hover:text-red-400 hover:bg-red-400/10 border border-gray-200 dark:border-white/10 whitespace-nowrap"
                                 >
                                   <i className="ri-delete-bin-line"></i>
                                 </Button>
@@ -877,22 +881,24 @@ export default function ProgramsPage() {
               {programExercises.length > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">선택된 운동 ({programExercises.length}개)</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">선택된 운동 ({programExercises.length}개)</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       <i className="ri-drag-move-line mr-1"></i>
                       드래그하여 순서 변경
                     </p>
                   </div>
                   <div className="space-y-2">
                     {programExercises.map((programExercise, index) => (
-                      <div 
+                      <div
                         key={programExercise.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, programExercise.exerciseId)}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, programExercise.exerciseId)}
-                        className={`flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg cursor-move hover:shadow-md transition-all ${
-                          draggedExerciseId === programExercise.exerciseId ? 'opacity-50' : ''
+                        className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-[#0a0a0a] border rounded-lg cursor-move transition-all hover:border-gray-300 dark:hover:border-white/15 ${
+                          draggedExerciseId === programExercise.exerciseId
+                            ? 'border-blue-400/50 dark:border-indigo-400/50 opacity-50'
+                            : 'border-gray-200 dark:border-white/8'
                         }`}
                       >
                         <div className="flex items-center gap-3 flex-1">
@@ -901,9 +907,9 @@ export default function ProgramsPage() {
                               onClick={() => moveExerciseUp(index)}
                               disabled={index === 0}
                               className={`w-6 h-6 flex items-center justify-center rounded ${
-                                index === 0 
-                                  ? 'text-gray-300 cursor-not-allowed' 
-                                  : 'text-gray-600 hover:bg-green-200 cursor-pointer'
+                                index === 0
+                                  ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white cursor-pointer'
                               }`}
                             >
                               <i className="ri-arrow-up-s-line text-sm"></i>
@@ -913,28 +919,28 @@ export default function ProgramsPage() {
                               disabled={index === programExercises.length - 1}
                               className={`w-6 h-6 flex items-center justify-center rounded ${
                                 index === programExercises.length - 1
-                                  ? 'text-gray-300 cursor-not-allowed' 
-                                  : 'text-gray-600 hover:bg-green-200 cursor-pointer'
+                                  ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white cursor-pointer'
                               }`}
                             >
                               <i className="ri-arrow-down-s-line text-sm"></i>
                             </button>
                           </div>
-                          <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
+                          <div className="w-8 h-8 bg-blue-50 dark:bg-indigo-500/20 text-blue-700 dark:text-indigo-300 rounded-full flex items-center justify-center font-medium text-sm">
                             {index + 1}
                           </div>
                           <div>
-                            <span className="font-medium text-green-800">{getExerciseName(programExercise.exerciseId)}</span>
-                            <span className="text-sm text-green-600 ml-2">({getExerciseBodyPart(programExercise.exerciseId)})</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{getExerciseName(programExercise.exerciseId)}</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">({getExerciseBodyPart(programExercise.exerciseId)})</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <i className="ri-draggable text-gray-400"></i>
+                          <i className="ri-draggable text-gray-400 dark:text-gray-600"></i>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => removeExerciseFromProgram(programExercise.id)}
-                            className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                            className="text-red-400/60 hover:text-red-400 hover:bg-red-400/10 border border-gray-200 dark:border-white/10 whitespace-nowrap"
                           >
                             <i className="ri-close-line mr-1"></i>
                             제거
@@ -947,13 +953,14 @@ export default function ProgramsPage() {
               )}
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                <Button variant="outline" onClick={() => setCurrentStep(2)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                   <i className="ri-arrow-left-line mr-2"></i>
                   이전 단계
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setCurrentStep(4)}
                   disabled={programExercises.length === 0}
+                  className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   다음 단계
                   <i className="ri-arrow-right-line ml-2"></i>
@@ -965,22 +972,22 @@ export default function ProgramsPage() {
           {/* 4단계: 세트 설정 */}
           {currentStep === 4 && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">세트별 상세 설정</h2>
-              
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">세트별 상세 설정</h2>
+
               <div className="space-y-6 mb-6">
                 {programExercises.map((programExercise) => (
-                  <div key={programExercise.id} className="p-4 border rounded-lg bg-white">
+                  <div key={programExercise.id} className="p-4 border border-gray-200 dark:border-white/8 rounded-lg bg-gray-50 dark:bg-[#0a0a0a]">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="font-medium text-lg">{getExerciseName(programExercise.exerciseId)}</h3>
-                        <span className="text-sm text-gray-600">({getExerciseBodyPart(programExercise.exerciseId)})</span>
+                        <h3 className="font-medium text-lg text-gray-900 dark:text-white">{getExerciseName(programExercise.exerciseId)}</h3>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">({getExerciseBodyPart(programExercise.exerciseId)})</span>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => addSetToExercise(programExercise.id)}
-                          className="whitespace-nowrap"
+                          className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                         >
                           <i className="ri-add-line mr-1"></i>
                           세트 추가
@@ -989,43 +996,43 @@ export default function ProgramsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => removeExerciseFromProgram(programExercise.id)}
-                          className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                          className="text-red-400/60 hover:text-red-400 hover:bg-red-400/10 border border-gray-200 dark:border-white/10 whitespace-nowrap"
                         >
                           <i className="ri-delete-bin-line"></i>
                         </Button>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {programExercise.sets.map((set, index) => (
-                        <div key={set.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div key={set.id} className="p-3 bg-gray-100 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg">
                           <div className="flex items-center justify-between mb-3">
-                            <span className="font-medium text-sm text-gray-700">세트 {index + 1}</span>
+                            <span className="font-medium text-sm text-gray-600 dark:text-gray-400">세트 {index + 1}</span>
                             {programExercise.sets.length > 1 && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeSetFromExercise(programExercise.id, set.id)}
-                                className="text-red-600 hover:bg-red-50 whitespace-nowrap"
+                                className="text-red-400/60 hover:text-red-400 hover:bg-red-400/10 border border-gray-200 dark:border-white/10 whitespace-nowrap"
                               >
                                 <i className="ri-close-line"></i>
                               </Button>
                             )}
                           </div>
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">횟수</label>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">횟수</label>
                               <input
                                 type="number"
                                 min="1"
                                 value={set.reps}
                                 onChange={(e) => updateSet(programExercise.id, set.id, 'reps', parseInt(e.target.value) || 1)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-center rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">무게(kg)</label>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">무게(kg)</label>
                               <input
                                 type="number"
                                 min="0"
@@ -1033,28 +1040,28 @@ export default function ProgramsPage() {
                                 value={set.weight || ''}
                                 onChange={(e) => updateSet(programExercise.id, set.id, 'weight', parseFloat(e.target.value) || 0)}
                                 placeholder="선택사항"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 text-center rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">휴식시간(초)</label>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">휴식시간(초)</label>
                               <input
                                 type="number"
                                 min="0"
                                 step="30"
                                 value={set.restTime}
                                 onChange={(e) => updateSet(programExercise.id, set.id, 'restTime', parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-center rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               />
                             </div>
                             <div className="sm:col-span-2 lg:col-span-1">
-                              <label className="block text-xs font-medium text-gray-700 mb-1">메모</label>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">메모</label>
                               <input
                                 type="text"
                                 value={set.memo || ''}
                                 onChange={(e) => updateSet(programExercise.id, set.id, 'memo', e.target.value)}
                                 placeholder="메모 입력"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               />
                             </div>
                           </div>
@@ -1066,25 +1073,25 @@ export default function ProgramsPage() {
               </div>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(3)}>
+                <Button variant="outline" onClick={() => setCurrentStep(3)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                   <i className="ri-arrow-left-line mr-2"></i>
                   이전 단계
                 </Button>
-                <Button onClick={saveProgram}>
+                <Button onClick={saveProgram} className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
                   <i className="ri-save-line mr-2"></i>
                   {view === 'edit' ? '프로그램 수정' : '프로그램 저장'}
                 </Button>
               </div>
             </div>
           )}
-        </Card>
+        </div>
       </div>
 
       {/* 운동 부위 추가 모달 */}
       {showAddBodyPartModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">운동 부위 추가</h3>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 부위 추가</h3>
             <Input
               label="부위 이름"
               value={newBodyPart}
@@ -1092,10 +1099,10 @@ export default function ProgramsPage() {
               placeholder="예: 전신"
             />
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowAddBodyPartModal(false)}>
+              <Button variant="outline" onClick={() => setShowAddBodyPartModal(false)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                 취소
               </Button>
-              <Button onClick={handleAddBodyPart}>추가</Button>
+              <Button onClick={handleAddBodyPart} className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">추가</Button>
             </div>
           </div>
         </div>
@@ -1103,9 +1110,9 @@ export default function ProgramsPage() {
 
       {/* 운동 추가 모달 */}
       {showAddExerciseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">운동 추가</h3>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 추가</h3>
             <div className="space-y-4">
               <Input
                 label="운동 이름"
@@ -1114,11 +1121,11 @@ export default function ProgramsPage() {
                 placeholder="예: 체스트플라이"
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">운동 부위</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">운동 부위</label>
                 <select
                   value={newExerciseBodyPart}
                   onChange={(e) => setNewExerciseBodyPart(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  className="w-full px-3 py-2 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-8"
                 >
                   {bodyParts.map((bodyPart) => (
                     <option key={bodyPart.id} value={bodyPart.id}>{bodyPart.name}</option>
@@ -1127,10 +1134,10 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowAddExerciseModal(false)}>
+              <Button variant="outline" onClick={() => setShowAddExerciseModal(false)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                 취소
               </Button>
-              <Button onClick={handleAddExercise}>추가</Button>
+              <Button onClick={handleAddExercise} className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">추가</Button>
             </div>
           </div>
         </div>
@@ -1138,9 +1145,9 @@ export default function ProgramsPage() {
 
       {/* 운동 수정 모달 */}
       {showEditExerciseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">운동 수정</h3>
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 수정</h3>
             <div className="space-y-4">
               <Input
                 label="운동 이름"
@@ -1148,11 +1155,11 @@ export default function ProgramsPage() {
                 onChange={(e) => setNewExerciseName(e.target.value)}
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">운동 부위</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">운동 부위</label>
                 <select
                   value={newExerciseBodyPart}
                   onChange={(e) => setNewExerciseBodyPart(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  className="w-full px-3 py-2 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-8"
                 >
                   {bodyParts.map((bodyPart) => (
                     <option key={bodyPart.id} value={bodyPart.id}>{bodyPart.name}</option>
@@ -1161,10 +1168,10 @@ export default function ProgramsPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={() => setShowEditExerciseModal(false)}>
+              <Button variant="outline" onClick={() => setShowEditExerciseModal(false)} className="border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white">
                 취소
               </Button>
-              <Button onClick={handleEditExercise}>수정</Button>
+              <Button onClick={handleEditExercise} className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">수정</Button>
             </div>
           </div>
         </div>
