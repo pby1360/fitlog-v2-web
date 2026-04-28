@@ -146,12 +146,7 @@ export default function WorkoutSessionPage() {
     timerRef.current = setInterval(() => {
       const now = Date.now();
       const totalTime = Math.max(0, Math.floor((now - startTime - localTotalPausedMsRef.current) / 1000));
-
-      setWorkoutSession(prev => prev ? {
-        ...prev,
-        totalTime
-      } : null);
-
+      setWorkoutSession(prev => prev ? { ...prev, totalTime } : null);
       setElapsedExerciseTime(Math.max(0, Math.floor((now - exerciseStartTimeRef.current) / 1000)));
     }, 1000);
 
@@ -196,7 +191,16 @@ export default function WorkoutSessionPage() {
       startTime: new Date(session.startTime).getTime(),
       currentExerciseIndex: exerciseIndex,
       currentSetIndex: setIndex,
-      totalTime: Math.max(0, Math.floor((Date.now() - (new Date(session.startTime).getTime() + (session.totalPausedSeconds || 0) * 1000)) / 1000)),
+      totalTime: (() => {
+        const sessionStartMs = new Date(session.startTime).getTime();
+        const totalPausedMs = (session.totalPausedSeconds || 0) * 1000;
+        // PAUSED 상태에서는 일시정지 순간의 시각(lastPausedAt)을 기준으로 계산해 새로고침해도 정지 시점 시간이 표시됨
+        if (session.status === 'PAUSED' && session.lastPausedAt) {
+          const pauseStartMs = new Date(session.lastPausedAt).getTime();
+          return Math.max(0, Math.floor((pauseStartMs - sessionStartMs - totalPausedMs) / 1000));
+        }
+        return Math.max(0, Math.floor((Date.now() - sessionStartMs - totalPausedMs) / 1000));
+      })(),
       status: session.status,
       exercises: session.exercises.map(ex => ({
         id: ex.id,
@@ -226,7 +230,8 @@ export default function WorkoutSessionPage() {
 
   const updateSessionState = (sessionResponse: WorkoutSessionResponse) => {
     const transformed = transformSessionResponse(sessionResponse, allExercises);
-    setWorkoutSession(transformed);
+    // totalTime은 타이머(localTotalPausedMsRef 기반)가 정확히 관리하므로 API 응답으로 덮어쓰지 않음
+    setWorkoutSession(prev => prev ? { ...transformed, totalTime: prev.totalTime } : transformed);
   };
 
   // 데이터 로딩
@@ -338,21 +343,26 @@ export default function WorkoutSessionPage() {
     if (!workoutSession) return;
     try {
       const updatedSession = await resumeWorkoutSession(workoutSession.id);
-      // 새로고침/재로그인 후 pauseStartMsRef가 리셋된 경우 서버의 lastPausedAt으로 폴백
-      const pauseStartMs = pauseStartMsRef.current ?? workoutSession.lastPausedAt ?? null;
-      if (pauseStartMs !== null) {
-        const pauseDurationMs = Date.now() - pauseStartMs;
-        localTotalPausedMsRef.current += pauseDurationMs;
-        exerciseStartTimeRef.current += pauseDurationMs;
-        // 보정된 운동 시작 시각을 localStorage와 서버에 동기화 (같은 기기/다른 기기 모두 정확하게 복원)
-        saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
-        const exercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
-        if (exercise) {
-          markExerciseStarted(workoutSession.id, exercise.id, exerciseStartTimeRef.current)
-            .catch(err => console.error('Failed to sync exercise start time:', err));
-        }
-        pauseStartMsRef.current = null;
+      // 일시정지 시간 계산: 서버 diff 우선, 클라이언트 타임스탬프 fallback
+      const serverPauseDurationMs =
+        ((updatedSession.totalPausedSeconds || 0) - (workoutSession.totalPausedSeconds || 0)) * 1000;
+      const pauseDurationMs =
+        serverPauseDurationMs > 0
+          ? serverPauseDurationMs
+          : pauseStartMsRef.current !== null
+            ? Date.now() - pauseStartMsRef.current
+            : workoutSession.lastPausedAt !== undefined
+              ? Date.now() - workoutSession.lastPausedAt  // 새로고침 후 pauseStartMsRef 유실 시 서버의 lastPausedAt으로 복원
+              : 0;
+      exerciseStartTimeRef.current += pauseDurationMs;
+      saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
+      const exercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
+      if (exercise) {
+        markExerciseStarted(workoutSession.id, exercise.id, exerciseStartTimeRef.current)
+          .catch(err => console.error('Failed to sync exercise start time:', err));
       }
+      localTotalPausedMsRef.current += pauseDurationMs;
+      pauseStartMsRef.current = null;
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to resume workout:", error);
