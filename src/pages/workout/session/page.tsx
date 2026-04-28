@@ -315,10 +315,14 @@ export default function WorkoutSessionPage() {
     if (!workoutSession) return;
     try {
       const updatedSession = await resumeWorkoutSession(workoutSession.id);
-      if (pauseStartMsRef.current !== null) {
-        const pauseDurationMs = Date.now() - pauseStartMsRef.current;
+      // 새로고침/재로그인 후 pauseStartMsRef가 리셋된 경우 서버의 lastPausedAt으로 폴백
+      const pauseStartMs = pauseStartMsRef.current ?? workoutSession.lastPausedAt ?? null;
+      if (pauseStartMs !== null) {
+        const pauseDurationMs = Date.now() - pauseStartMs;
         localTotalPausedMsRef.current += pauseDurationMs;
         exerciseStartTimeRef.current += pauseDurationMs;
+        // 보정된 운동 시작 시각을 localStorage에 저장해 재로드 후에도 복원
+        saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
         pauseStartMsRef.current = null;
       }
       updateSessionState(updatedSession);
