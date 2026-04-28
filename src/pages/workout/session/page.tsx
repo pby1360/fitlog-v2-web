@@ -12,7 +12,8 @@ import {
   pauseWorkoutSession,
   resumeWorkoutSession,
   endWorkoutSession,
-  skipWorkoutSessionExercise
+  skipWorkoutSessionExercise,
+  markExerciseStarted
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -37,6 +38,7 @@ interface ExerciseSet {
   sets: ExerciseSetDetail[];
   completed: boolean;
   skipped: boolean;
+  startedAt?: number;
 }
 
 interface WorkoutSession {
@@ -106,15 +108,35 @@ export default function WorkoutSessionPage() {
     const prevIndex = prevExerciseIndexRef.current;
 
     if (prevIndex === undefined) {
-      // 초기 페이지 로드: localStorage에서 운동 시작 시간 복원, 없으면 세션 시작 시간 사용
+      // 초기 페이지 로드
+      // 우선순위: localStorage(보정값, 같은 기기) > 서버 startedAt(다른 기기) > 세션 시작 시각
       const saved = loadExerciseStartTime(workoutSession.id, currentExerciseIndex);
-      exerciseStartTimeRef.current = saved ?? startTime;
+      const serverStartedAt = workoutSession.exercises[currentExerciseIndex]?.startedAt;
+      if (saved !== null) {
+        exerciseStartTimeRef.current = saved;
+      } else if (serverStartedAt) {
+        exerciseStartTimeRef.current = serverStartedAt;
+      } else {
+        exerciseStartTimeRef.current = startTime;
+        // 서버에 운동 시작 시각 최초 기록
+        const exercise = workoutSession.exercises[currentExerciseIndex];
+        if (exercise) {
+          markExerciseStarted(workoutSession.id, exercise.id, startTime)
+            .catch(err => console.error('Failed to mark exercise started:', err));
+        }
+      }
     } else if (prevIndex !== currentExerciseIndex) {
       // 운동 전환(건너뛰기 or 세트 완료 후 다음 운동): 현재 시각으로 초기화 후 저장
       const now = Date.now();
       exerciseStartTimeRef.current = now;
       saveExerciseStartTime(workoutSession.id, currentExerciseIndex, now);
       setElapsedExerciseTime(0);
+      // 서버에 운동 시작 시각 기록 (다른 기기 접속 시 복원용)
+      const exercise = workoutSession.exercises[currentExerciseIndex];
+      if (exercise) {
+        markExerciseStarted(workoutSession.id, exercise.id, now)
+          .catch(err => console.error('Failed to mark exercise started:', err));
+      }
     }
     // status만 변경(일시정지 후 재개 등): exerciseStartTimeRef 유지
 
@@ -182,6 +204,7 @@ export default function WorkoutSessionPage() {
         workoutName: ex.workoutName,
         workoutPartName: ex.bodyPart || allWorkouts.find(w => w.id === ex.workoutId)?.bodyPart || '',
         skipped: ex.skipped ?? false,
+        startedAt: ex.startedAt ? new Date(ex.startedAt).getTime() : undefined,
         sets: ex.sets.map(set => ({
           id: set.id,
           reps: set.reps,
@@ -321,8 +344,13 @@ export default function WorkoutSessionPage() {
         const pauseDurationMs = Date.now() - pauseStartMs;
         localTotalPausedMsRef.current += pauseDurationMs;
         exerciseStartTimeRef.current += pauseDurationMs;
-        // 보정된 운동 시작 시각을 localStorage에 저장해 재로드 후에도 복원
+        // 보정된 운동 시작 시각을 localStorage와 서버에 동기화 (같은 기기/다른 기기 모두 정확하게 복원)
         saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
+        const exercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
+        if (exercise) {
+          markExerciseStarted(workoutSession.id, exercise.id, exerciseStartTimeRef.current)
+            .catch(err => console.error('Failed to sync exercise start time:', err));
+        }
         pauseStartMsRef.current = null;
       }
       updateSessionState(updatedSession);
