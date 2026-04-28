@@ -79,6 +79,7 @@ export default function WorkoutSessionPage() {
   const localTotalPausedMsRef = useRef(0);
 
   const EXERCISE_START_KEY = 'exercise_start_time';
+  const PAUSE_SNAPSHOT_KEY = 'pause_snapshot';
 
   const saveExerciseStartTime = (sessionId: number, exerciseIndex: number, time: number) => {
     localStorage.setItem(EXERCISE_START_KEY, JSON.stringify({ sessionId, exerciseIndex, time }));
@@ -94,6 +95,24 @@ export default function WorkoutSessionPage() {
       }
     } catch {}
     return null;
+  };
+
+  const savePauseSnapshot = (sessionId: number, totalTime: number) => {
+    localStorage.setItem(PAUSE_SNAPSHOT_KEY, JSON.stringify({ sessionId, totalTime }));
+  };
+
+  const loadPauseSnapshot = (sessionId: number): number | null => {
+    try {
+      const stored = localStorage.getItem(PAUSE_SNAPSHOT_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (parsed.sessionId === sessionId) return parsed.totalTime;
+    } catch {}
+    return null;
+  };
+
+  const clearPauseSnapshot = () => {
+    localStorage.removeItem(PAUSE_SNAPSHOT_KEY);
   };
 
   // 모든 타이머 로직을 통합 관리하는 useEffect
@@ -194,10 +213,15 @@ export default function WorkoutSessionPage() {
       totalTime: (() => {
         const sessionStartMs = new Date(session.startTime).getTime();
         const totalPausedMs = (session.totalPausedSeconds || 0) * 1000;
-        // PAUSED 상태에서는 일시정지 순간의 시각(lastPausedAt)을 기준으로 계산해 새로고침해도 정지 시점 시간이 표시됨
-        if (session.status === 'PAUSED' && session.lastPausedAt) {
-          const pauseStartMs = new Date(session.lastPausedAt).getTime();
-          return Math.max(0, Math.floor((pauseStartMs - sessionStartMs - totalPausedMs) / 1000));
+        if (session.status === 'PAUSED') {
+          // 1순위: 서버의 lastPausedAt
+          if (session.lastPausedAt) {
+            const pauseStartMs = new Date(session.lastPausedAt).getTime();
+            return Math.max(0, Math.floor((pauseStartMs - sessionStartMs - totalPausedMs) / 1000));
+          }
+          // 2순위: 일시정지 직전 저장한 localStorage 스냅샷
+          const snapshot = loadPauseSnapshot(session.id);
+          if (snapshot !== null) return snapshot;
         }
         return Math.max(0, Math.floor((Date.now() - sessionStartMs - totalPausedMs) / 1000));
       })(),
@@ -330,6 +354,8 @@ export default function WorkoutSessionPage() {
   const pauseWorkout = async () => {
     if (!workoutSession) return;
     pauseStartMsRef.current = Date.now();
+    // 새로고침 후 lastPausedAt이 없을 때를 대비해 현재 totalTime 저장
+    savePauseSnapshot(workoutSession.id, workoutSession.totalTime);
     try {
       const updatedSession = await pauseWorkoutSession(workoutSession.id);
       updateSessionState(updatedSession);
@@ -352,8 +378,17 @@ export default function WorkoutSessionPage() {
           : pauseStartMsRef.current !== null
             ? Date.now() - pauseStartMsRef.current
             : workoutSession.lastPausedAt !== undefined
-              ? Date.now() - workoutSession.lastPausedAt  // 새로고침 후 pauseStartMsRef 유실 시 서버의 lastPausedAt으로 복원
+              ? Date.now() - workoutSession.lastPausedAt
               : 0;
+
+      // 새로고침 후 exerciseStartTimeRef가 0(미초기화)이면 올바른 기준 시각으로 복원
+      if (exerciseStartTimeRef.current === 0) {
+        const exIdx = workoutSession.currentExerciseIndex;
+        const saved = loadExerciseStartTime(workoutSession.id, exIdx);
+        const serverStartedAt = workoutSession.exercises[exIdx]?.startedAt;
+        exerciseStartTimeRef.current = saved ?? serverStartedAt ?? workoutSession.startTime;
+      }
+
       exerciseStartTimeRef.current += pauseDurationMs;
       saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
       const exercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
@@ -363,6 +398,7 @@ export default function WorkoutSessionPage() {
       }
       localTotalPausedMsRef.current += pauseDurationMs;
       pauseStartMsRef.current = null;
+      clearPauseSnapshot();
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to resume workout:", error);
