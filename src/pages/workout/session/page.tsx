@@ -73,6 +73,8 @@ export default function WorkoutSessionPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
+  const pauseStartMsRef = useRef<number | null>(null);
+  const localTotalPausedMsRef = useRef(0);
 
   const EXERCISE_START_KEY = 'exercise_start_time';
 
@@ -121,12 +123,11 @@ export default function WorkoutSessionPage() {
     // 타이머 설정
     timerRef.current = setInterval(() => {
       const now = Date.now();
-      const currentTotalPausedSeconds = workoutSession.totalPausedSeconds || 0;
-      const effectiveSessionStartTimeForTotal = startTime + (currentTotalPausedSeconds * 1000);
+      const totalTime = Math.max(0, Math.floor((now - startTime - localTotalPausedMsRef.current) / 1000));
 
       setWorkoutSession(prev => prev ? {
         ...prev,
-        totalTime: Math.max(0, Math.floor((now - effectiveSessionStartTimeForTotal) / 1000))
+        totalTime
       } : null);
 
       setElapsedExerciseTime(Math.max(0, Math.floor((now - exerciseStartTimeRef.current) / 1000)));
@@ -217,6 +218,7 @@ export default function WorkoutSessionPage() {
         if (session) {
           setAllExercises(workouts); // 운동 목록을 먼저 설정
           const transformedSession = transformSessionResponse(session, workouts);
+          localTotalPausedMsRef.current = (session.totalPausedSeconds || 0) * 1000;
           setWorkoutSession(transformedSession);
         } else {
           navigate('/workout');
@@ -299,11 +301,13 @@ export default function WorkoutSessionPage() {
   // API 연동 핸들러
   const pauseWorkout = async () => {
     if (!workoutSession) return;
+    pauseStartMsRef.current = Date.now();
     try {
       const updatedSession = await pauseWorkoutSession(workoutSession.id);
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to pause workout:", error);
+      pauseStartMsRef.current = null;
     }
   };
 
@@ -311,6 +315,12 @@ export default function WorkoutSessionPage() {
     if (!workoutSession) return;
     try {
       const updatedSession = await resumeWorkoutSession(workoutSession.id);
+      if (pauseStartMsRef.current !== null) {
+        const pauseDurationMs = Date.now() - pauseStartMsRef.current;
+        localTotalPausedMsRef.current += pauseDurationMs;
+        exerciseStartTimeRef.current += pauseDurationMs;
+        pauseStartMsRef.current = null;
+      }
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to resume workout:", error);
