@@ -12,7 +12,8 @@ import {
   pauseWorkoutSession,
   resumeWorkoutSession,
   endWorkoutSession,
-  skipWorkoutSessionExercise
+  skipWorkoutSessionExercise,
+  markExerciseStarted
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -37,6 +38,7 @@ interface ExerciseSet {
   sets: ExerciseSetDetail[];
   completed: boolean;
   skipped: boolean;
+  startedAt?: number;
 }
 
 interface WorkoutSession {
@@ -73,8 +75,11 @@ export default function WorkoutSessionPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
+  const pauseStartMsRef = useRef<number | null>(null);
+  const localTotalPausedMsRef = useRef(0);
 
   const EXERCISE_START_KEY = 'exercise_start_time';
+  const PAUSE_SNAPSHOT_KEY = 'pause_snapshot';
 
   const saveExerciseStartTime = (sessionId: number, exerciseIndex: number, time: number) => {
     localStorage.setItem(EXERCISE_START_KEY, JSON.stringify({ sessionId, exerciseIndex, time }));
@@ -92,6 +97,24 @@ export default function WorkoutSessionPage() {
     return null;
   };
 
+  const savePauseSnapshot = (sessionId: number, totalTime: number) => {
+    localStorage.setItem(PAUSE_SNAPSHOT_KEY, JSON.stringify({ sessionId, totalTime }));
+  };
+
+  const loadPauseSnapshot = (sessionId: number): number | null => {
+    try {
+      const stored = localStorage.getItem(PAUSE_SNAPSHOT_KEY);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (parsed.sessionId === sessionId) return parsed.totalTime;
+    } catch {}
+    return null;
+  };
+
+  const clearPauseSnapshot = () => {
+    localStorage.removeItem(PAUSE_SNAPSHOT_KEY);
+  };
+
   // 모든 타이머 로직을 통합 관리하는 useEffect
   useEffect(() => {
     if (!workoutSession || workoutSession.status !== 'IN_PROGRESS') {
@@ -104,15 +127,35 @@ export default function WorkoutSessionPage() {
     const prevIndex = prevExerciseIndexRef.current;
 
     if (prevIndex === undefined) {
-      // 초기 페이지 로드: localStorage에서 운동 시작 시간 복원, 없으면 세션 시작 시간 사용
+      // 초기 페이지 로드
+      // 우선순위: localStorage(보정값, 같은 기기) > 서버 startedAt(다른 기기) > 세션 시작 시각
       const saved = loadExerciseStartTime(workoutSession.id, currentExerciseIndex);
-      exerciseStartTimeRef.current = saved ?? startTime;
+      const serverStartedAt = workoutSession.exercises[currentExerciseIndex]?.startedAt;
+      if (saved !== null) {
+        exerciseStartTimeRef.current = saved;
+      } else if (serverStartedAt) {
+        exerciseStartTimeRef.current = serverStartedAt;
+      } else {
+        exerciseStartTimeRef.current = startTime;
+        // 서버에 운동 시작 시각 최초 기록
+        const exercise = workoutSession.exercises[currentExerciseIndex];
+        if (exercise) {
+          markExerciseStarted(workoutSession.id, exercise.id, startTime)
+            .catch(err => console.error('Failed to mark exercise started:', err));
+        }
+      }
     } else if (prevIndex !== currentExerciseIndex) {
       // 운동 전환(건너뛰기 or 세트 완료 후 다음 운동): 현재 시각으로 초기화 후 저장
       const now = Date.now();
       exerciseStartTimeRef.current = now;
       saveExerciseStartTime(workoutSession.id, currentExerciseIndex, now);
       setElapsedExerciseTime(0);
+      // 서버에 운동 시작 시각 기록 (다른 기기 접속 시 복원용)
+      const exercise = workoutSession.exercises[currentExerciseIndex];
+      if (exercise) {
+        markExerciseStarted(workoutSession.id, exercise.id, now)
+          .catch(err => console.error('Failed to mark exercise started:', err));
+      }
     }
     // status만 변경(일시정지 후 재개 등): exerciseStartTimeRef 유지
 
@@ -121,14 +164,8 @@ export default function WorkoutSessionPage() {
     // 타이머 설정
     timerRef.current = setInterval(() => {
       const now = Date.now();
-      const currentTotalPausedSeconds = workoutSession.totalPausedSeconds || 0;
-      const effectiveSessionStartTimeForTotal = startTime + (currentTotalPausedSeconds * 1000);
-
-      setWorkoutSession(prev => prev ? {
-        ...prev,
-        totalTime: Math.max(0, Math.floor((now - effectiveSessionStartTimeForTotal) / 1000))
-      } : null);
-
+      const totalTime = Math.max(0, Math.floor((now - startTime - localTotalPausedMsRef.current) / 1000));
+      setWorkoutSession(prev => prev ? { ...prev, totalTime } : null);
       setElapsedExerciseTime(Math.max(0, Math.floor((now - exerciseStartTimeRef.current) / 1000)));
     }, 1000);
 
@@ -173,7 +210,21 @@ export default function WorkoutSessionPage() {
       startTime: new Date(session.startTime).getTime(),
       currentExerciseIndex: exerciseIndex,
       currentSetIndex: setIndex,
-      totalTime: Math.max(0, Math.floor((Date.now() - (new Date(session.startTime).getTime() + (session.totalPausedSeconds || 0) * 1000)) / 1000)),
+      totalTime: (() => {
+        const sessionStartMs = new Date(session.startTime).getTime();
+        const totalPausedMs = (session.totalPausedSeconds || 0) * 1000;
+        if (session.status === 'PAUSED') {
+          // 1순위: 서버의 lastPausedAt
+          if (session.lastPausedAt) {
+            const pauseStartMs = new Date(session.lastPausedAt).getTime();
+            return Math.max(0, Math.floor((pauseStartMs - sessionStartMs - totalPausedMs) / 1000));
+          }
+          // 2순위: 일시정지 직전 저장한 localStorage 스냅샷
+          const snapshot = loadPauseSnapshot(session.id);
+          if (snapshot !== null) return snapshot;
+        }
+        return Math.max(0, Math.floor((Date.now() - sessionStartMs - totalPausedMs) / 1000));
+      })(),
       status: session.status,
       exercises: session.exercises.map(ex => ({
         id: ex.id,
@@ -181,6 +232,7 @@ export default function WorkoutSessionPage() {
         workoutName: ex.workoutName,
         workoutPartName: ex.bodyPart || allWorkouts.find(w => w.id === ex.workoutId)?.bodyPart || '',
         skipped: ex.skipped ?? false,
+        startedAt: ex.startedAt ? new Date(ex.startedAt).getTime() : undefined,
         sets: ex.sets.map(set => ({
           id: set.id,
           reps: set.reps,
@@ -202,7 +254,8 @@ export default function WorkoutSessionPage() {
 
   const updateSessionState = (sessionResponse: WorkoutSessionResponse) => {
     const transformed = transformSessionResponse(sessionResponse, allExercises);
-    setWorkoutSession(transformed);
+    // totalTime은 타이머(localTotalPausedMsRef 기반)가 정확히 관리하므로 API 응답으로 덮어쓰지 않음
+    setWorkoutSession(prev => prev ? { ...transformed, totalTime: prev.totalTime } : transformed);
   };
 
   // 데이터 로딩
@@ -217,6 +270,7 @@ export default function WorkoutSessionPage() {
         if (session) {
           setAllExercises(workouts); // 운동 목록을 먼저 설정
           const transformedSession = transformSessionResponse(session, workouts);
+          localTotalPausedMsRef.current = (session.totalPausedSeconds || 0) * 1000;
           setWorkoutSession(transformedSession);
         } else {
           navigate('/workout');
@@ -299,11 +353,15 @@ export default function WorkoutSessionPage() {
   // API 연동 핸들러
   const pauseWorkout = async () => {
     if (!workoutSession) return;
+    pauseStartMsRef.current = Date.now();
+    // 새로고침 후 lastPausedAt이 없을 때를 대비해 현재 totalTime 저장
+    savePauseSnapshot(workoutSession.id, workoutSession.totalTime);
     try {
       const updatedSession = await pauseWorkoutSession(workoutSession.id);
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to pause workout:", error);
+      pauseStartMsRef.current = null;
     }
   };
 
@@ -311,6 +369,36 @@ export default function WorkoutSessionPage() {
     if (!workoutSession) return;
     try {
       const updatedSession = await resumeWorkoutSession(workoutSession.id);
+      // 일시정지 시간 계산: 서버 diff 우선, 클라이언트 타임스탬프 fallback
+      const serverPauseDurationMs =
+        ((updatedSession.totalPausedSeconds || 0) - (workoutSession.totalPausedSeconds || 0)) * 1000;
+      const pauseDurationMs =
+        serverPauseDurationMs > 0
+          ? serverPauseDurationMs
+          : pauseStartMsRef.current !== null
+            ? Date.now() - pauseStartMsRef.current
+            : workoutSession.lastPausedAt !== undefined
+              ? Date.now() - workoutSession.lastPausedAt
+              : 0;
+
+      // 새로고침 후 exerciseStartTimeRef가 0(미초기화)이면 올바른 기준 시각으로 복원
+      if (exerciseStartTimeRef.current === 0) {
+        const exIdx = workoutSession.currentExerciseIndex;
+        const saved = loadExerciseStartTime(workoutSession.id, exIdx);
+        const serverStartedAt = workoutSession.exercises[exIdx]?.startedAt;
+        exerciseStartTimeRef.current = saved ?? serverStartedAt ?? workoutSession.startTime;
+      }
+
+      exerciseStartTimeRef.current += pauseDurationMs;
+      saveExerciseStartTime(workoutSession.id, workoutSession.currentExerciseIndex, exerciseStartTimeRef.current);
+      const exercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
+      if (exercise) {
+        markExerciseStarted(workoutSession.id, exercise.id, exerciseStartTimeRef.current)
+          .catch(err => console.error('Failed to sync exercise start time:', err));
+      }
+      localTotalPausedMsRef.current += pauseDurationMs;
+      pauseStartMsRef.current = null;
+      clearPauseSnapshot();
       updateSessionState(updatedSession);
     } catch (error) {
       console.error("Failed to resume workout:", error);

@@ -297,6 +297,7 @@ interface SessionExerciseResponse {
     bodyPart?: string;
     order: number;
     skipped: boolean;
+    startedAt?: string;
     sets: SessionSetResponse[];
 }
 
@@ -370,6 +371,17 @@ export const pauseWorkoutSession = async (sessionId: number): Promise<WorkoutSes
 export const resumeWorkoutSession = async (sessionId: number): Promise<WorkoutSessionResponse> => {
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/resume`, {
         method: 'PATCH',
+    });
+};
+
+export const markExerciseStarted = async (
+    sessionId: number,
+    exerciseId: number,
+    startedAt: number
+): Promise<void> => {
+    await fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/exercises/${exerciseId}/start`, {
+        method: 'PATCH',
+        body: JSON.stringify({ startedAt: new Date(startedAt).toISOString() }),
     });
 };
 
