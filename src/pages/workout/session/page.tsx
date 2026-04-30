@@ -162,12 +162,14 @@ export default function WorkoutSessionPage() {
     prevExerciseIndexRef.current = currentExerciseIndex;
 
     // 타이머 설정
-    timerRef.current = setInterval(() => {
+    const tick = () => {
       const now = Date.now();
       const totalTime = Math.max(0, Math.floor((now - startTime - localTotalPausedMsRef.current) / 1000));
       setWorkoutSession(prev => prev ? { ...prev, totalTime } : null);
       setElapsedExerciseTime(Math.max(0, Math.floor((now - exerciseStartTimeRef.current) / 1000)));
-    }, 1000);
+    };
+    tick(); // 첫 tick까지 1초 대기로 인한 점프 방지: 즉시 한 번 갱신
+    timerRef.current = setInterval(tick, 1000);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -271,6 +273,17 @@ export default function WorkoutSessionPage() {
           setAllExercises(workouts); // 운동 목록을 먼저 설정
           const transformedSession = transformSessionResponse(session, workouts);
           localTotalPausedMsRef.current = (session.totalPausedSeconds || 0) * 1000;
+
+          // 일시정지 상태로 새로고침: 타이머가 안 돌아 운동 시간이 0으로 보이는 문제 보정
+          if (transformedSession.status === 'PAUSED' && transformedSession.lastPausedAt) {
+            const exIdx = transformedSession.currentExerciseIndex;
+            const saved = loadExerciseStartTime(transformedSession.id, exIdx);
+            const serverStartedAt = transformedSession.exercises[exIdx]?.startedAt;
+            const exStart = saved ?? serverStartedAt ?? transformedSession.startTime;
+            exerciseStartTimeRef.current = exStart;
+            setElapsedExerciseTime(Math.max(0, Math.floor((transformedSession.lastPausedAt - exStart) / 1000)));
+          }
+
           setWorkoutSession(transformedSession);
         } else {
           navigate('/workout');
