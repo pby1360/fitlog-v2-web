@@ -396,6 +396,20 @@ export const skipWorkoutSessionExercise = async (
     });
 };
 
+export const addSetToWorkoutSessionExercise = async (
+    sessionId: number,
+    workoutSessionExerciseId: number,
+    set: { weight?: number; reps: number; restTime: number; memo?: string }
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(
+        `${API_BASE_URL}/workout-sessions/${sessionId}/exercises/${workoutSessionExerciseId}/sets`,
+        {
+            method: 'POST',
+            body: JSON.stringify(set),
+        }
+    );
+};
+
 export const endWorkoutSession = async (
     sessionId: number,
     status: 'COMPLETED' | 'CANCELLED'

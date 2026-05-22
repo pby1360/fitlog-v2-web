@@ -13,7 +13,8 @@ import {
   resumeWorkoutSession,
   endWorkoutSession,
   skipWorkoutSessionExercise,
-  markExerciseStarted
+  markExerciseStarted,
+  addSetToWorkoutSessionExercise
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -66,6 +67,7 @@ export default function WorkoutSessionPage() {
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
+  const [isAddingSet, setIsAddingSet] = useState(false);
 
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
 
@@ -474,6 +476,34 @@ export default function WorkoutSessionPage() {
     }
   };
 
+  const addSetToCurrentExercise = async () => {
+    if (!workoutSession) return;
+    const currentExercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
+    if (!currentExercise) return;
+
+    const lastSet = currentExercise.sets.length > 0
+      ? currentExercise.sets[currentExercise.sets.length - 1]
+      : null;
+
+    setIsAddingSet(true);
+    try {
+      const updatedSession = await addSetToWorkoutSessionExercise(
+        workoutSession.id,
+        currentExercise.id,
+        {
+          weight: lastSet ? lastSet.weight : undefined,
+          reps: lastSet ? lastSet.reps : 10,
+          restTime: lastSet ? lastSet.restTime : 60,
+        }
+      );
+      updateSessionState(updatedSession);
+    } catch (error) {
+      console.error("Failed to add set:", error);
+    } finally {
+      setIsAddingSet(false);
+    }
+  };
+
   const resetWorkout = () => {
     if (workoutSession) {
       const resetSession: WorkoutSession = {
@@ -842,6 +872,24 @@ export default function WorkoutSessionPage() {
                   </Button>
                 </>
               )}
+              <Button
+                onClick={addSetToCurrentExercise}
+                variant="outline"
+                disabled={isAddingSet}
+                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+              >
+                {isAddingSet ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                    처리중...
+                  </div>
+                ) : (
+                  <>
+                    <i className="ri-add-line mr-2"></i>
+                    세트 추가
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         )}
