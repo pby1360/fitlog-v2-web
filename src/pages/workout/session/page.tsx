@@ -14,7 +14,9 @@ import {
   endWorkoutSession,
   skipWorkoutSessionExercise,
   markExerciseStarted,
-  addSetToWorkoutSessionExercise
+  addSetToWorkoutSessionExercise,
+  addExerciseToWorkoutSession,
+  CustomExerciseDto
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -68,6 +70,11 @@ export default function WorkoutSessionPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
   const [isAddingSet, setIsAddingSet] = useState(false);
+  const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
+  const [addExerciseFilter, setAddExerciseFilter] = useState('');
+  const [pendingWorkout, setPendingWorkout] = useState<WorkoutResponse | null>(null);
+  const [pendingSets, setPendingSets] = useState<{ reps: number; weight: number; restTime: number }[]>([]);
+  const [isAddingExercise, setIsAddingExercise] = useState(false);
 
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
 
@@ -504,6 +511,56 @@ export default function WorkoutSessionPage() {
     }
   };
 
+  // 운동 중 운동 추가 모달 핸들러
+  const selectWorkoutForAdd = (workout: WorkoutResponse) => {
+    setPendingWorkout(workout);
+    setPendingSets([{ reps: 10, weight: 0, restTime: 60 }]);
+  };
+
+  const addPendingSet = () => {
+    setPendingSets(prev => [...prev, { reps: 10, weight: 0, restTime: 60 }]);
+  };
+
+  const removePendingSet = (index: number) => {
+    setPendingSets(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePendingSet = (index: number, field: 'reps' | 'weight' | 'restTime', value: number) => {
+    setPendingSets(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+  };
+
+  const closeAddExerciseModal = () => {
+    setShowAddExerciseModal(false);
+    setPendingWorkout(null);
+    setPendingSets([]);
+    setAddExerciseFilter('');
+  };
+
+  const confirmAddExercise = async () => {
+    if (!pendingWorkout || !workoutSession) return;
+    setIsAddingExercise(true);
+    try {
+      const exercise: CustomExerciseDto = {
+        workoutId: pendingWorkout.id,
+        order: workoutSession.exercises.length + 1,
+        sets: pendingSets.map((s, i) => ({
+          setNumber: i + 1,
+          weight: s.weight || undefined,
+          reps: s.reps,
+          restTime: s.restTime,
+        })),
+      };
+      const updatedSession = await addExerciseToWorkoutSession(workoutSession.id, exercise);
+      updateSessionState(updatedSession);
+      closeAddExerciseModal();
+    } catch (error) {
+      console.error('Failed to add exercise:', error);
+      alert('운동을 추가하는 중 오류가 발생했습니다.');
+    } finally {
+      setIsAddingExercise(false);
+    }
+  };
+
   const resetWorkout = () => {
     if (workoutSession) {
       const resetSession: WorkoutSession = {
@@ -602,6 +659,17 @@ export default function WorkoutSessionPage() {
   const currentBodyPart = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'bodyPart') : '';
   const currentExerciseName = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'name') : '';
   const progress = getWorkoutProgress();
+
+  // 운동 추가 모달용: 카탈로그 필터링 및 부위별 그룹핑
+  const filteredWorkouts = allExercises.filter(w =>
+    w.name.toLowerCase().includes(addExerciseFilter.toLowerCase()) ||
+    w.bodyPart.toLowerCase().includes(addExerciseFilter.toLowerCase())
+  );
+  const groupedWorkouts = filteredWorkouts.reduce<Record<string, WorkoutResponse[]>>((acc, w) => {
+    if (!acc[w.bodyPart]) acc[w.bodyPart] = [];
+    acc[w.bodyPart].push(w);
+    return acc;
+  }, {});
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
@@ -954,10 +1022,168 @@ export default function WorkoutSessionPage() {
               </div>
             ))}
           </div>
+
+          {workoutSession.status !== 'COMPLETED' && workoutSession.status !== 'CANCELLED' && (
+            <button
+              onClick={() => setShowAddExerciseModal(true)}
+              className="w-full mt-3 py-3 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg text-gray-400 dark:text-gray-600 hover:border-blue-300 dark:hover:border-indigo-400/50 hover:text-blue-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
+            >
+              <i className="ri-add-line text-xl"></i>
+              <span className="font-medium">운동 추가</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* 모달들 */}
+      {showAddExerciseModal && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {pendingWorkout && (
+                  <button
+                    onClick={() => { setPendingWorkout(null); setPendingSets([]); }}
+                    className="p-1 text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded"
+                  >
+                    <i className="ri-arrow-left-line text-lg"></i>
+                  </button>
+                )}
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {pendingWorkout ? pendingWorkout.name : '운동 추가'}
+                </h3>
+              </div>
+              <button onClick={closeAddExerciseModal} className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded">
+                <i className="ri-close-line text-xl"></i>
+              </button>
+            </div>
+
+            {!pendingWorkout ? (
+              <>
+                <div className="p-4 border-b border-gray-100 dark:border-white/5">
+                  <input
+                    type="text"
+                    value={addExerciseFilter}
+                    onChange={(e) => setAddExerciseFilter(e.target.value)}
+                    placeholder="운동 이름 또는 부위로 검색..."
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {Object.keys(groupedWorkouts).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">검색 결과가 없습니다</p>
+                  ) : (
+                    Object.entries(groupedWorkouts).map(([bodyPart, workouts]) => (
+                      <div key={bodyPart} className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-500 mb-2 px-1">{bodyPart}</h4>
+                        <div className="space-y-1">
+                          {workouts.map(workout => {
+                            const alreadyAdded = workoutSession.exercises.some(ex => ex.exerciseId === workout.id);
+                            return (
+                              <button
+                                key={workout.id}
+                                onClick={() => selectWorkoutForAdd(workout)}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                                  alreadyAdded
+                                    ? 'bg-blue-50 dark:bg-indigo-500/10 text-blue-700 dark:text-indigo-300'
+                                    : 'hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{workout.name}</span>
+                                  {alreadyAdded
+                                    ? <span className="text-xs text-blue-600 dark:text-indigo-400">추가됨</span>
+                                    : <i className="ri-arrow-right-s-line text-gray-400 dark:text-gray-600"></i>
+                                  }
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <p className="text-sm text-gray-500 mb-4">
+                    <span className="bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded text-xs mr-2">{pendingWorkout.bodyPart}</span>
+                    세트 구성을 설정하세요
+                  </p>
+
+                  {/* 세트 헤더 */}
+                  <div className="grid grid-cols-[2rem_1fr_1fr_1fr_2rem] gap-2 text-xs font-medium text-gray-400 dark:text-gray-600 mb-2 px-1">
+                    <div className="text-center">세트</div>
+                    <div className="text-center">횟수</div>
+                    <div className="text-center">무게(kg)</div>
+                    <div className="text-center">휴식(초)</div>
+                    <div></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {pendingSets.map((set, index) => (
+                      <div key={index} className="grid grid-cols-[2rem_1fr_1fr_1fr_2rem] gap-2 items-center">
+                        <div className="text-center text-sm font-medium text-gray-500">{index + 1}</div>
+                        <input
+                          type="number"
+                          min={1}
+                          value={set.reps}
+                          onChange={(e) => updatePendingSet(index, 'reps', Math.max(1, Number(e.target.value)))}
+                          className="w-full px-2 py-1.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-sm text-gray-900 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={2.5}
+                          value={set.weight}
+                          onChange={(e) => updatePendingSet(index, 'weight', Math.max(0, Number(e.target.value)))}
+                          className="w-full px-2 py-1.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-sm text-gray-900 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={15}
+                          value={set.restTime}
+                          onChange={(e) => updatePendingSet(index, 'restTime', Math.max(0, Number(e.target.value)))}
+                          className="w-full px-2 py-1.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-sm text-gray-900 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <button
+                          onClick={() => removePendingSet(index)}
+                          disabled={pendingSets.length === 1}
+                          className={`flex items-center justify-center rounded ${
+                            pendingSets.length === 1 ? 'text-gray-300 dark:text-gray-700' : 'text-red-400 hover:text-red-300'
+                          }`}
+                        >
+                          <i className="ri-delete-bin-line"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={addPendingSet}
+                    className="mt-3 w-full py-2 border border-dashed border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-400 dark:text-gray-600 hover:border-blue-300 dark:hover:border-indigo-400/50 hover:text-blue-600 dark:hover:text-indigo-400 transition-colors"
+                  >
+                    <i className="ri-add-line mr-1"></i>세트 추가
+                  </button>
+                </div>
+
+                <div className="p-4 border-t border-gray-100 dark:border-white/5">
+                  <button
+                    onClick={confirmAddExercise}
+                    disabled={isAddingExercise}
+                    className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {isAddingExercise ? '추가 중...' : `${pendingSets.length}세트로 추가`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {showCompleteModal && (
         <div className="fixed inset-0 bg-black/30 dark:bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-xl p-6 w-full max-w-md text-center">
