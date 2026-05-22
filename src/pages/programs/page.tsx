@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
@@ -55,6 +55,7 @@ interface Program {
 }
 
 export default function ProgramsPage() {
+  const navigate = useNavigate();
   const [view, setView] = useState<'list' | 'create' | 'edit' | 'manage-workouts'>('list');
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -577,7 +578,11 @@ export default function ProgramsPage() {
                     >
                       수정
                     </Button>
-                    <Button size="sm" className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
+                      onClick={() => navigate('/workout', { state: { selectedProgramId: program.id } })}
+                    >
                       운동 시작
                     </Button>
                   </div>

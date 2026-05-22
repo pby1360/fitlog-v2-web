@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
@@ -41,6 +41,7 @@ export default function WorkoutPage() {
   const [pendingWorkout, setPendingWorkout] = useState<WorkoutResponse | null>(null);
   const [pendingSets, setPendingSets] = useState<{ reps: number; weight: number; restTime: number }[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const initializePage = async () => {
@@ -81,6 +82,17 @@ export default function WorkoutPage() {
           ),
         }));
         setPrograms(transformedPrograms);
+
+        // /programs 목록의 "운동 시작" 버튼으로 진입한 경우 해당 프로그램을 바로 편집 화면으로
+        const selectedProgramId = (location.state as { selectedProgramId?: number } | null)?.selectedProgramId;
+        if (selectedProgramId != null) {
+          const target = transformedPrograms.find(p => p.id === selectedProgramId);
+          if (target) {
+            setSelectedProgram(target);
+            setEditableExercises(target.exercises.map(ex => ({ ...ex, sets: [...ex.sets] })));
+            setView('edit');
+          }
+        }
       } catch (error) {
         alert("데이터를 불러오는데 실패했습니다.");
         console.error("Failed to initialize workout page:", error);
@@ -90,7 +102,7 @@ export default function WorkoutPage() {
     };
 
     initializePage();
-  }, [navigate]);
+  }, [navigate, location.state]);
 
   // 프로그램 선택 → 편집 화면으로 전환
   const handleSelectProgram = (program: Program) => {
