@@ -5,6 +5,7 @@ import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
 import Header from '../../components/feature/Header';
 import { getWorkoutParts, getWorkouts, saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, getWorkoutPrograms, type ProgramResponse, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
+import ManageWorkoutsView from './ManageWorkoutsView';
 
 interface WorkoutPart {
   id: number;
@@ -54,7 +55,7 @@ interface Program {
 }
 
 export default function ProgramsPage() {
-  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'edit' | 'manage-workouts'>('list');
   const [programs, setPrograms] = useState<Program[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
@@ -467,6 +468,11 @@ export default function ProgramsPage() {
     setProgramExercises(newExercises);
   };
 
+  // 운동 항목 관리 화면
+  if (view === 'manage-workouts') {
+    return <ManageWorkoutsView onBack={() => setView('list')} />;
+  }
+
   // 프로그램 목록 화면
   if (view === 'list') {
     return (
@@ -486,10 +492,20 @@ export default function ProgramsPage() {
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">운동 프로그램</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">나만의 운동 루틴을 관리하세요</p>
               </div>
-              <Button onClick={startCreateProgram} className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
-                <i className="ri-add-line mr-2"></i>
-                새 프로그램 만들기
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={() => setView('manage-workouts')}
+                  className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
+                >
+                  <i className="ri-list-settings-line mr-2"></i>
+                  운동 관리
+                </Button>
+                <Button onClick={startCreateProgram} className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
+                  <i className="ri-add-line mr-2"></i>
+                  새 프로그램 만들기
+                </Button>
+              </div>
             </div>
           </div>
 
