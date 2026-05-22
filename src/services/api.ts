@@ -410,6 +410,16 @@ export const addSetToWorkoutSessionExercise = async (
     );
 };
 
+export const addExerciseToWorkoutSession = async (
+    sessionId: number,
+    exercise: CustomExerciseDto
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/exercises`, {
+        method: 'POST',
+        body: JSON.stringify(exercise),
+    });
+};
+
 export const endWorkoutSession = async (
     sessionId: number,
     status: 'COMPLETED' | 'CANCELLED'
