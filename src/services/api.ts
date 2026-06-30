@@ -297,6 +297,7 @@ interface SessionExerciseResponse {
     bodyPart?: string;
     order: number;
     skipped: boolean;
+    startedAt?: string;
     sets: SessionSetResponse[];
 }
 
@@ -373,6 +374,17 @@ export const resumeWorkoutSession = async (sessionId: number): Promise<WorkoutSe
     });
 };
 
+export const markExerciseStarted = async (
+    sessionId: number,
+    exerciseId: number,
+    startedAt: number
+): Promise<void> => {
+    await fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/exercises/${exerciseId}/start`, {
+        method: 'PATCH',
+        body: JSON.stringify({ startedAt: new Date(startedAt).toISOString() }),
+    });
+};
+
 export const skipWorkoutSessionExercise = async (
     sessionId: number,
     workoutSessionExerciseId: number,
@@ -381,6 +393,30 @@ export const skipWorkoutSessionExercise = async (
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/skip-exercise`, {
         method: 'PATCH',
         body: JSON.stringify({ workoutSessionExerciseId, skipped }),
+    });
+};
+
+export const addSetToWorkoutSessionExercise = async (
+    sessionId: number,
+    workoutSessionExerciseId: number,
+    set: { weight?: number; reps: number; restTime: number; memo?: string }
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(
+        `${API_BASE_URL}/workout-sessions/${sessionId}/exercises/${workoutSessionExerciseId}/sets`,
+        {
+            method: 'POST',
+            body: JSON.stringify(set),
+        }
+    );
+};
+
+export const addExerciseToWorkoutSession = async (
+    sessionId: number,
+    exercise: CustomExerciseDto
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/exercises`, {
+        method: 'POST',
+        body: JSON.stringify(exercise),
     });
 };
 

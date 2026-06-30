@@ -35,8 +35,8 @@ function formatDuration(seconds: number) {
 }
 
 const PROVIDER_LABEL: Record<string, { label: string; color: string; icon: string }> = {
-  GOOGLE: { label: 'Google', color: 'bg-red-50 text-red-600 border-red-200', icon: 'ri-google-fill' },
-  KAKAO:  { label: 'Kakao',  color: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'ri-kakao-talk-fill' },
+  GOOGLE: { label: 'Google', color: 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10', icon: 'ri-google-fill' },
+  KAKAO:  { label: 'Kakao',  color: 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10', icon: 'ri-kakao-talk-fill' },
 };
 
 export default function ProfilePage() {
@@ -106,12 +106,12 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500 text-sm">프로필을 불러오는 중...</p>
+            <div className="w-10 h-10 border-4 border-blue-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-600 dark:text-gray-400 text-sm">프로필을 불러오는 중...</p>
           </div>
         </div>
       </div>
@@ -120,14 +120,14 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
         <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ri-error-warning-line text-2xl text-red-500" />
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i className="ri-error-warning-line text-2xl text-red-400" />
           </div>
-          <p className="text-gray-700 font-medium mb-1">불러오기 실패</p>
-          <p className="text-red-500 text-sm">{error}</p>
+          <p className="text-gray-900 dark:text-white font-medium mb-1">불러오기 실패</p>
+          <p className="text-red-400 text-sm">{error}</p>
         </div>
       </div>
     );
@@ -135,19 +135,19 @@ export default function ProfilePage() {
 
   if (!profileData) return null;
 
-  const providerMeta = PROVIDER_LABEL[profileData.provider] ?? { label: profileData.provider, color: 'bg-gray-100 text-gray-600 border-gray-200', icon: 'ri-user-line' };
+  const providerMeta = PROVIDER_LABEL[profileData.provider] ?? { label: profileData.provider, color: 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10', icon: 'ri-user-line' };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
       <Header />
 
       {/* ── Hero Banner ── */}
-      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800">
+      <div className="bg-gray-100 dark:bg-[#0f0f0f] border-b border-gray-100 dark:border-white/5">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-4 ring-white/30 overflow-hidden bg-blue-400 flex items-center justify-center">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-4 ring-gray-200 dark:ring-white/10 overflow-hidden bg-indigo-500/20 flex items-center justify-center">
                 {profileData.imageUrl ? (
                   <img src={profileData.imageUrl} alt="프로필" className="w-full h-full object-cover" />
                 ) : (
@@ -159,14 +159,14 @@ export default function ProfilePage() {
             {/* Name / meta */}
             <div className="text-center sm:text-left pb-1">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">{profileData.nickname}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{profileData.nickname}</h1>
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${providerMeta.color} self-center`}>
                   <i className={`${providerMeta.icon} text-xs`} />
                   {providerMeta.label}
                 </span>
               </div>
-              <p className="text-blue-200 text-sm">{profileData.email}</p>
-              <p className="text-blue-300 text-xs mt-1">가입일 {profileData.createdAt}</p>
+              <p className="text-gray-500 text-sm">{profileData.email}</p>
+              <p className="text-gray-500 text-xs mt-1">가입일 {profileData.createdAt}</p>
             </div>
 
             {/* Edit button (hero 우측 정렬) */}
@@ -174,7 +174,7 @@ export default function ProfilePage() {
               {!isEditing ? (
                 <button
                   onClick={handleEdit}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-sm font-medium transition-colors border border-white/20"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/8 text-gray-900 dark:text-white text-sm font-medium transition-colors border border-gray-200 dark:border-white/10"
                 >
                   <i className="ri-edit-line" />
                   프로필 수정
@@ -184,14 +184,14 @@ export default function ProfilePage() {
                   <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-60"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
                   >
-                    {isSaving ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <i className="ri-save-line" />}
+                    {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="ri-save-line" />}
                     저장
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-sm font-medium transition-colors border border-white/20"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/8 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors border border-gray-200 dark:border-white/10"
                   >
                     <i className="ri-close-line" />
                     취소
@@ -207,18 +207,18 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 mb-8">
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
           {[
-            { icon: 'ri-calendar-check-line', value: profileData.totalWorkoutDays, unit: '일', label: '총 운동일', color: 'text-blue-600', bg: 'bg-blue-50' },
-            { icon: 'ri-repeat-line',          value: profileData.totalCompletedSets, unit: '세트', label: '완료 세트', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { icon: 'ri-timer-flash-line',     value: formatDuration(profileData.totalDurationSeconds), unit: '', label: '총 운동시간', color: 'text-violet-600', bg: 'bg-violet-50' },
+            { icon: 'ri-calendar-check-line', value: profileData.totalWorkoutDays, unit: '일', label: '총 운동일', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { icon: 'ri-repeat-line',          value: profileData.totalCompletedSets, unit: '세트', label: '완료 세트', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { icon: 'ri-timer-flash-line',     value: formatDuration(profileData.totalDurationSeconds), unit: '', label: '총 운동시간', color: 'text-violet-400', bg: 'bg-violet-500/10' },
           ].map(stat => (
-            <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col items-center text-center">
+            <div key={stat.label} className="bg-white dark:bg-[#111] rounded-xl border border-gray-100 dark:border-white/5 p-4 flex flex-col items-center text-center">
               <div className={`w-9 h-9 rounded-lg ${stat.bg} flex items-center justify-center mb-2`}>
                 <i className={`${stat.icon} ${stat.color} text-lg`} />
               </div>
-              <div className={`text-xl sm:text-2xl font-bold ${stat.color}`}>
+              <div className={`text-xl sm:text-2xl font-bold text-gray-900 dark:text-white`}>
                 {stat.value}<span className="text-sm font-medium ml-0.5">{stat.unit}</span>
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
+              <div className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -227,16 +227,16 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 space-y-5">
 
         {/* ── 개인정보 카드 ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <i className="ri-user-settings-line text-blue-600" />
+        <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-indigo-500/10 flex items-center justify-center">
+              <i className="ri-user-settings-line text-blue-600 dark:text-indigo-400" />
             </div>
-            <h2 className="text-base font-semibold text-gray-900">개인정보</h2>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">개인정보</h2>
           </div>
 
           {saveError && (
-            <div className="mx-6 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-600">
+            <div className="mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-sm text-red-400">
               <i className="ri-error-warning-line flex-shrink-0" />
               {saveError}
             </div>
@@ -280,7 +280,7 @@ export default function ProfilePage() {
               {isEditing ? (
                 <div className="relative">
                   <Input type="number" value={editData.height} onChange={e => handleInputChange('height', e.target.value)} placeholder="0" className="pr-10" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">cm</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-gray-600">cm</span>
                 </div>
               ) : (
                 <Value>{profileData.height != null ? `${profileData.height} cm` : '-'}</Value>
@@ -292,7 +292,7 @@ export default function ProfilePage() {
               {isEditing ? (
                 <div className="relative">
                   <Input type="number" value={editData.weight} onChange={e => handleInputChange('weight', e.target.value)} placeholder="0" className="pr-10" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">kg</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-gray-600">kg</span>
                 </div>
               ) : (
                 <Value>{profileData.weight != null ? `${profileData.weight} kg` : '-'}</Value>
@@ -305,7 +305,7 @@ export default function ProfilePage() {
                 <select
                   value={editData.goal}
                   onChange={e => handleInputChange('goal', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="">선택하세요</option>
                   <option value="체중 감량">체중 감량</option>
@@ -325,7 +325,7 @@ export default function ProfilePage() {
                 <select
                   value={editData.experience}
                   onChange={e => handleInputChange('experience', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="">선택하세요</option>
                   <option value="초급자">초급자 (6개월 미만)</option>
@@ -340,33 +340,33 @@ export default function ProfilePage() {
         </div>
 
         {/* ── 계정 설정 카드 ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center">
-              <i className="ri-settings-3-line text-gray-600" />
+        <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-indigo-500/10 flex items-center justify-center">
+              <i className="ri-settings-3-line text-blue-600 dark:text-indigo-400" />
             </div>
-            <h2 className="text-base font-semibold text-gray-900">계정 설정</h2>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">계정 설정</h2>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-white/5">
             <SettingRow
               icon="ri-notification-3-line"
-              iconBg="bg-blue-50"
-              iconColor="text-blue-600"
+              iconBg="bg-blue-50 dark:bg-indigo-500/10"
+              iconColor="text-blue-600 dark:text-indigo-400"
               title="알림 설정"
               desc="운동 알림 및 성과 알림을 받습니다"
               toggled={true}
             />
             <SettingRow
               icon="ri-cloud-line"
-              iconBg="bg-emerald-50"
-              iconColor="text-emerald-600"
+              iconBg="bg-blue-50 dark:bg-indigo-500/10"
+              iconColor="text-blue-600 dark:text-indigo-400"
               title="데이터 백업"
               desc="운동 기록을 클라우드에 백업합니다"
               toggled={false}
             />
             <div className="px-6 py-4">
-              <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 transition-colors">
+              <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors">
                 <i className="ri-delete-bin-line" />
                 계정 삭제
               </button>
@@ -384,8 +384,8 @@ export default function ProfilePage() {
 function Field({ label, icon, children }: { label: string; icon: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-        <i className={`${icon} text-gray-400 text-sm`} />
+      <label className="flex items-center gap-1.5 text-xs font-medium text-gray-400 dark:text-gray-600 uppercase tracking-wide mb-1.5">
+        <i className={`${icon} text-gray-400 dark:text-gray-600 text-sm`} />
         {label}
       </label>
       {children}
@@ -395,7 +395,7 @@ function Field({ label, icon, children }: { label: string; icon: string; childre
 
 function Value({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
   return (
-    <p className={`text-sm py-2 ${muted ? 'text-gray-400' : 'text-gray-900 font-medium'}`}>
+    <p className={`text-sm py-2 ${muted ? 'text-gray-500' : 'text-gray-700 dark:text-gray-300 font-medium'}`}>
       {children}
     </p>
   );
@@ -404,14 +404,14 @@ function Value({ children, muted }: { children: React.ReactNode; muted?: boolean
 function GoalBadge({ value }: { value: string | null }) {
   if (!value) return <Value>-</Value>;
   const map: Record<string, string> = {
-    '체중 감량': 'bg-orange-50 text-orange-700 border-orange-200',
-    '근력 증가': 'bg-blue-50 text-blue-700 border-blue-200',
-    '체력 향상': 'bg-green-50 text-green-700 border-green-200',
-    '근육량 증가': 'bg-purple-50 text-purple-700 border-purple-200',
-    '건강 유지': 'bg-teal-50 text-teal-700 border-teal-200',
+    '체중 감량': 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-500/20',
+    '근력 증가': 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-500/20',
+    '체력 향상': 'bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-300 border-green-200 dark:border-green-500/20',
+    '근육량 증가': 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-200 dark:border-purple-500/20',
+    '건강 유지': 'bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-300 border-teal-200 dark:border-teal-500/20',
   };
   return (
-    <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-medium border ${map[value] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+    <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-medium border ${map[value] ?? 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10'}`}>
       {value}
     </span>
   );
@@ -420,12 +420,12 @@ function GoalBadge({ value }: { value: string | null }) {
 function ExperienceBadge({ value }: { value: string | null }) {
   if (!value) return <Value>-</Value>;
   const map: Record<string, string> = {
-    '초급자': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    '중급자': 'bg-amber-50 text-amber-700 border-amber-200',
-    '고급자': 'bg-red-50 text-red-700 border-red-200',
+    '초급자': 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20',
+    '중급자': 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-200 dark:border-amber-500/20',
+    '고급자': 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300 border-red-200 dark:border-red-500/20',
   };
   return (
-    <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-medium border ${map[value] ?? 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+    <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-medium border ${map[value] ?? 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10'}`}>
       {value}
     </span>
   );
@@ -441,11 +441,11 @@ function SettingRow({ icon, iconBg, iconColor, title, desc, toggled }: {
           <i className={`${icon} ${iconColor} text-sm`} />
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-900">{title}</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</p>
           <p className="text-xs text-gray-500">{desc}</p>
         </div>
       </div>
-      <button className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${toggled ? 'bg-blue-600' : 'bg-gray-200'}`}>
+      <button className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${toggled ? 'bg-indigo-600 dark:bg-indigo-600' : 'bg-gray-200 dark:bg-white/10'}`}>
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${toggled ? 'translate-x-6' : 'translate-x-1'}`} />
       </button>
     </div>

@@ -178,7 +178,7 @@ export default function HistoryPage() {
 
   if (loading && view !== 'detail') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-center h-64">
           <div className="text-gray-500">불러오는 중...</div>
@@ -189,11 +189,11 @@ export default function HistoryPage() {
 
   if (error && view !== 'detail') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <Card className="p-8 text-center">
-            <p className="text-red-500 mb-4">{error}</p>
+          <Card className="p-8 text-center bg-red-500/10 border border-red-500/20">
+            <p className="text-red-400 mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>다시 시도</Button>
           </Card>
         </div>
@@ -220,21 +220,21 @@ export default function HistoryPage() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
 
         <div className="max-w-6xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Link to="/" className="hover:text-blue-600">홈</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+              <Link to="/" className="hover:text-gray-900 dark:hover:text-white transition-colors">홈</Link>
               <i className="ri-arrow-right-s-line"></i>
               <span>운동일지</span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">운동일지</h1>
-                <p className="text-gray-600 mt-1">캘린더로 운동 기록을 확인하세요</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">운동일지</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">캘린더로 운동 기록을 확인하세요</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -244,7 +244,7 @@ export default function HistoryPage() {
                     setView('list');
                     navigate('/history');
                   }}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
                 >
                   <i className="ri-list-unordered mr-2"></i>
                   목록
@@ -253,7 +253,7 @@ export default function HistoryPage() {
                   variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   <i className="ri-calendar-line mr-2"></i>
                   캘린더
@@ -263,15 +263,15 @@ export default function HistoryPage() {
           </div>
 
           {/* 캘린더 */}
-          <Card className="p-4 sm:p-6">
+          <Card className="p-4 sm:p-6 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
             {/* 캘린더 헤더 */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{monthYear}</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{monthYear}</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="whitespace-nowrap">
+                <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-arrow-left-s-line"></i>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="whitespace-nowrap">
+                <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-arrow-right-s-line"></i>
                 </Button>
               </div>
@@ -281,7 +281,7 @@ export default function HistoryPage() {
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => (
                 <div key={day} className={`p-2 sm:p-3 text-center text-xs sm:text-sm font-medium ${
-                  index === 0 ? 'text-red-600' : index === 6 ? 'text-blue-600' : 'text-gray-700'
+                  index === 0 ? 'text-red-400' : index === 6 ? 'text-blue-600 dark:text-indigo-400' : 'text-gray-500'
                 }`}>
                   {day}
                 </div>
@@ -302,12 +302,12 @@ export default function HistoryPage() {
                 return (
                   <div
                     key={day}
-                    className={`p-1 sm:p-2 h-20 sm:h-24 border border-gray-200 rounded-lg ${
-                      isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'
+                    className={`p-1 sm:p-2 h-20 sm:h-24 border rounded-lg ${
+                      isToday ? 'bg-blue-50 dark:bg-indigo-500/10 border-blue-300 dark:border-indigo-500/30' : 'bg-gray-50 dark:bg-white/[0.02] border-gray-100 dark:border-white/5'
                     }`}
                   >
                     <div className={`text-xs sm:text-sm font-medium mb-1 ${
-                      isToday ? 'text-blue-600' : 'text-gray-900'
+                      isToday ? 'text-blue-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400'
                     }`}>
                       {day}
                     </div>
@@ -316,7 +316,7 @@ export default function HistoryPage() {
                         <button
                           key={workout.id}
                           onClick={() => viewDetail(workout)}
-                          className="w-full text-left text-xs bg-green-100 text-green-700 px-1 py-0.5 rounded truncate hover:bg-green-200 cursor-pointer transition-colors"
+                          className="w-full text-left text-xs bg-emerald-500/10 text-emerald-400 px-1 py-0.5 rounded truncate hover:bg-emerald-500/20 cursor-pointer transition-colors"
                         >
                           {workout.programName}
                         </button>
@@ -340,28 +340,28 @@ export default function HistoryPage() {
   // 운동 기록 목록 화면
   if (view === 'list') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
 
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Link to="/" className="hover:text-blue-600">홈</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+              <Link to="/" className="hover:text-gray-900 dark:hover:text-white transition-colors">홈</Link>
               <i className="ri-arrow-right-s-line"></i>
               <span>운동일지</span>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">운동일지</h1>
-                <p className="text-gray-600 mt-1">지금까지의 운동 기록을 확인하세요</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">운동일지</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">지금까지의 운동 기록을 확인하세요</p>
               </div>
               <div className="flex gap-2">
                 <Button
                   variant={view === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setView('list')}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   <i className="ri-list-unordered mr-2"></i>
                   목록
@@ -370,7 +370,7 @@ export default function HistoryPage() {
                   variant={view === 'calendar' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
                 >
                   <i className="ri-calendar-line mr-2"></i>
                   캘린더
@@ -381,16 +381,16 @@ export default function HistoryPage() {
 
           {/* 조회 기간 선택 */}
           <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1">
-            <span className="text-sm text-gray-600 font-medium whitespace-nowrap">조회 기간</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">조회 기간</span>
             <div className="flex gap-1">
               {PERIOD_OPTIONS.map(option => (
                 <button
                   key={option.value}
                   onClick={() => setSelectedPeriod(option.value)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap border ${
                     selectedPeriod === option.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                      ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30'
+                      : 'bg-gray-100 dark:bg-white/5 text-gray-500 border-gray-200 dark:border-white/8 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
                   }`}
                 >
                   {option.label}
@@ -401,45 +401,45 @@ export default function HistoryPage() {
 
           {/* 통계 요약 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <Card className="p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-2xl font-bold text-blue-600 mb-1">
+            <Card className="p-3 sm:p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-lg sm:text-2xl font-bold text-blue-600 dark:text-indigo-400 mb-1">
                 {totalElements}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">총 운동 횟수</div>
+              <div className="text-xs sm:text-sm text-gray-500">총 운동 횟수</div>
             </Card>
 
-            <Card className="p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-2xl font-bold text-green-600 mb-1">
+            <Card className="p-3 sm:p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-lg sm:text-2xl font-bold text-emerald-400 mb-1">
                 {formatTime(totalDurationSeconds)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">총 운동 시간</div>
+              <div className="text-xs sm:text-sm text-gray-500">총 운동 시간</div>
             </Card>
 
-            <Card className="p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-2xl font-bold text-purple-600 mb-1">
+            <Card className="p-3 sm:p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-lg sm:text-2xl font-bold text-violet-400 mb-1">
                 {totalCompletedSets}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">완료 세트</div>
+              <div className="text-xs sm:text-sm text-gray-500">완료 세트</div>
             </Card>
 
-            <Card className="p-3 sm:p-4 text-center">
-              <div className="text-lg sm:text-2xl font-bold text-orange-600 mb-1">
+            <Card className="p-3 sm:p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-lg sm:text-2xl font-bold text-amber-400 mb-1">
                 {Math.round(averageCompletionRate)}%
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">평균 완료율</div>
+              <div className="text-xs sm:text-sm text-gray-500">평균 완료율</div>
             </Card>
           </div>
 
           {/* 운동 기록 목록 */}
           {workoutRecords.length === 0 ? (
-            <Card className="p-8 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="ri-history-line text-2xl text-gray-400"></i>
+            <Card className="p-8 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-history-line text-2xl text-gray-400 dark:text-gray-600"></i>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">운동 기록이 없습니다</h3>
-              <p className="text-gray-600 mb-4">첫 번째 운동을 완료하면 기록이 여기에 표시됩니다</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">운동 기록이 없습니다</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">첫 번째 운동을 완료하면 기록이 여기에 표시됩니다</p>
               <Link to="/workout">
-                <Button className="whitespace-nowrap">
+                <Button className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0">
                   <i className="ri-play-line mr-2"></i>
                   운동 시작하기
                 </Button>
@@ -450,18 +450,18 @@ export default function HistoryPage() {
               {workoutRecords.map((record) => (
                 <Card
                   key={record.id}
-                  className="p-4 sm:p-6 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-gray-50"
+                  className="p-4 sm:p-6 transition-all duration-200 cursor-pointer bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10"
                 >
                   <div className="flex flex-col gap-3 sm:gap-4" onClick={() => viewDetail(record)}>
                     {/* 헤더 정보 */}
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                       <div className="flex-1">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{record.programName}</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{record.programName}</h3>
                           <span className="text-sm text-gray-500 font-medium">{formatDate(record.date)}</span>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
                           <div className="flex items-center gap-1">
                             <i className="ri-time-line text-xs"></i>
                             <span className="text-xs sm:text-sm">{record.startTime} - {record.endTime}</span>
@@ -483,17 +483,17 @@ export default function HistoryPage() {
 
                       {/* 완료율 표시 */}
                       <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1">
-                        <div className="text-xl sm:text-2xl font-bold text-green-600">{getCompletionRate(record)}%</div>
-                        <div className="text-xs text-gray-600">완료율</div>
+                        <div className="text-xl sm:text-2xl font-bold text-emerald-400">{getCompletionRate(record)}%</div>
+                        <div className="text-xs text-gray-500">완료율</div>
                       </div>
                     </div>
 
                     {/* 운동 부위 */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <span className="text-sm text-gray-600 font-medium">운동 부위:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">운동 부위:</span>
                       <div className="flex flex-wrap gap-1">
                         {record.bodyParts.map((bodyPart, index) => (
-                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                          <span key={index} className="px-2 py-1 bg-blue-50 dark:bg-indigo-500/10 text-blue-600 dark:text-indigo-400 text-xs rounded-full font-medium">
                             {bodyPart}
                           </span>
                         ))}
@@ -501,10 +501,10 @@ export default function HistoryPage() {
                     </div>
 
                     {/* 하단 액션 영역 */}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-white/5">
+                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                         <div className="flex items-center gap-1">
-                          <i className="ri-trophy-line text-yellow-500"></i>
+                          <i className="ri-trophy-line text-amber-400"></i>
                           <span>목표 달성</span>
                         </div>
                         <div className="text-xs">
@@ -518,7 +518,7 @@ export default function HistoryPage() {
                           e.stopPropagation();
                           viewDetail(record);
                         }}
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+                        className="flex items-center gap-1 text-blue-600 dark:text-indigo-400 hover:text-blue-700 dark:hover:text-indigo-300 transition-colors"
                       >
                         <span className="text-sm font-medium">상세보기</span>
                         <i className="ri-arrow-right-s-line"></i>
@@ -538,7 +538,7 @@ export default function HistoryPage() {
                 size="sm"
                 onClick={() => fetchListPage(currentPage - 1)}
                 disabled={currentPage === 0}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 <i className="ri-arrow-left-s-line mr-1"></i>
                 이전
@@ -551,8 +551,8 @@ export default function HistoryPage() {
                     onClick={() => fetchListPage(page)}
                     className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
                       page === currentPage
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white'
+                        : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                   >
                     {page + 1}
@@ -565,7 +565,7 @@ export default function HistoryPage() {
                 size="sm"
                 onClick={() => fetchListPage(currentPage + 1)}
                 disabled={currentPage >= totalPages - 1}
-                className="whitespace-nowrap"
+                className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
               >
                 다음
                 <i className="ri-arrow-right-s-line ml-1"></i>
@@ -580,32 +580,32 @@ export default function HistoryPage() {
   // 운동 기록 상세 화면
   if (view === 'detail' && selectedRecord) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
 
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* 헤더 */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Link to="/" className="hover:text-blue-600">홈</Link>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+              <Link to="/" className="hover:text-gray-900 dark:hover:text-white transition-colors">홈</Link>
               <i className="ri-arrow-right-s-line"></i>
-              <Link to="/history" className="hover:text-blue-600">운동일지</Link>
+              <Link to="/history" className="hover:text-gray-900 dark:hover:text-white transition-colors">운동일지</Link>
               <i className="ri-arrow-right-s-line"></i>
               <span>상세 기록</span>
             </div>
             <div className="flex flex-col gap-4">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedRecord.programName}</h1>
-                <p className="text-gray-600 mt-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{selectedRecord.programName}</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
                   {formatDate(selectedRecord.date)} • {selectedRecord.startTime} - {selectedRecord.endTime}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={backToList} className="whitespace-nowrap text-sm">
+                <Button variant="outline" onClick={backToList} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-list-unordered mr-2"></i>
                   목록으로
                 </Button>
-                <Button variant="outline" onClick={backToCalendar} className="whitespace-nowrap text-sm">
+                <Button variant="outline" onClick={backToCalendar} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-calendar-line mr-2"></i>
                   캘린더로
                 </Button>
@@ -615,41 +615,41 @@ export default function HistoryPage() {
 
           {/* 운동 요약 정보 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card className="p-4 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-1">
+            <Card className="p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-indigo-400 mb-1">
                 {formatTime(selectedRecord.totalTime)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">총 운동시간</div>
+              <div className="text-xs sm:text-sm text-gray-500">총 운동시간</div>
             </Card>
 
-            <Card className="p-4 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-green-600 mb-1">
+            <Card className="p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-400 mb-1">
                 {selectedRecord.completedExercises}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">완료한 운동</div>
+              <div className="text-xs sm:text-sm text-gray-500">완료한 운동</div>
             </Card>
 
-            <Card className="p-4 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-purple-600 mb-1">
+            <Card className="p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-xl sm:text-2xl font-bold text-violet-400 mb-1">
                 {selectedRecord.completedSets}
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">완료한 세트</div>
+              <div className="text-xs sm:text-sm text-gray-500">완료한 세트</div>
             </Card>
 
-            <Card className="p-4 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-orange-600 mb-1">
+            <Card className="p-4 text-center bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+              <div className="text-xl sm:text-2xl font-bold text-amber-400 mb-1">
                 {getCompletionRate(selectedRecord)}%
               </div>
-              <div className="text-xs sm:text-sm text-gray-600">완료율</div>
+              <div className="text-xs sm:text-sm text-gray-500">완료율</div>
             </Card>
           </div>
 
           {/* 운동 부위별 정보 */}
-          <Card className="p-4 sm:p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">운동 부위</h3>
+          <Card className="p-4 sm:p-6 mb-6 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 부위</h3>
             <div className="flex flex-wrap gap-2">
               {selectedRecord.bodyParts.map((bodyPart, index) => (
-                <span key={index} className="px-3 py-2 bg-blue-100 text-blue-700 text-sm rounded-lg font-medium">
+                <span key={index} className="px-3 py-2 bg-blue-50 dark:bg-indigo-500/10 text-blue-600 dark:text-indigo-400 text-sm rounded-lg font-medium">
                   {bodyPart}
                 </span>
               ))}
@@ -659,24 +659,24 @@ export default function HistoryPage() {
           {/* 운동별 상세 기록 */}
           <div className="space-y-6">
             {selectedRecord.exercises.map((exercise, exerciseIndex) => (
-              <Card key={exercise.id} className="p-4 sm:p-6">
+              <Card key={exercise.id} className="p-4 sm:p-6 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{exercise.name}</h3>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 mt-1">
-                      <span className="px-2 py-1 bg-gray-100 rounded text-xs">{exercise.bodyPart}</span>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exercise.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <span className="px-2 py-1 bg-gray-100 dark:bg-white/5 rounded text-xs text-gray-600 dark:text-gray-400">{exercise.bodyPart}</span>
                       <span className="text-xs sm:text-sm">운동시간: {exercise.exerciseTime > 0 ? formatTime(exercise.exerciseTime) : '-'}</span>
                       <span className="text-xs sm:text-sm">{exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}세트 완료</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">#{exerciseIndex + 1}</div>
+                    <div className="text-lg font-bold text-gray-600 dark:text-gray-400">#{exerciseIndex + 1}</div>
                   </div>
                 </div>
 
                 {/* 세트별 상세 정보 - 모바일 최적화 */}
                 <div className="space-y-3">
-                  <div className="hidden sm:grid sm:grid-cols-6 gap-2 text-xs font-medium text-gray-600 pb-2 border-b">
+                  <div className="hidden sm:grid sm:grid-cols-6 gap-2 text-xs font-medium text-gray-400 dark:text-gray-600 pb-2 border-b border-gray-100 dark:border-white/5">
                     <div>세트</div>
                     <div>횟수</div>
                     <div>무게</div>
@@ -686,17 +686,17 @@ export default function HistoryPage() {
                   </div>
 
                   {exercise.sets.map((set, setIndex) => (
-                    <div key={set.id} className="border-b border-gray-100 last:border-b-0 pb-3 last:pb-0">
+                    <div key={set.id} className="border-b border-gray-100 dark:border-white/5 last:border-b-0 pb-3 last:pb-0">
                       {/* 모바일 뷰 */}
                       <div className="sm:hidden">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-gray-900">세트 {setIndex + 1}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">세트 {setIndex + 1}</span>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             !set.completed
-                              ? 'bg-gray-100 text-gray-500'
+                              ? 'bg-gray-100 dark:bg-white/5 text-gray-500'
                               : set.actualReps >= set.targetReps
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-orange-100 text-orange-700'
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : 'bg-amber-400/10 text-amber-400'
                           }`}>
                             {!set.completed ? '미완료' : set.actualReps >= set.targetReps ? '완료' : '미달'}
                           </span>
@@ -704,32 +704,32 @@ export default function HistoryPage() {
                         {set.completed && (
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <span className="text-gray-600">횟수: </span>
-                              <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                              <span className="text-gray-500">횟수: </span>
+                              <span className={set.actualReps >= set.targetReps ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                 {set.actualReps}
                               </span>
-                              <span className="text-gray-400">/{set.targetReps}</span>
+                              <span className="text-gray-400 dark:text-gray-600">/{set.targetReps}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">무게: </span>
+                              <span className="text-gray-500">무게: </span>
                               {set.targetWeight ? (
                                 <>
-                                  <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                                  <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                     {set.actualWeight || set.targetWeight}
                                   </span>
-                                  {set.targetWeight && <span className="text-gray-400">/{set.targetWeight}kg</span>}
+                                  {set.targetWeight && <span className="text-gray-400 dark:text-gray-600">/{set.targetWeight}kg</span>}
                                 </>
                               ) : (
-                                <span className="text-gray-400">-</span>
+                                <span className="text-gray-400 dark:text-gray-600">-</span>
                               )}
                             </div>
                             <div>
-                              <span className="text-gray-600">휴식: </span>
-                              <span>{Math.floor(set.restTime / 60)}분</span>
+                              <span className="text-gray-500">휴식: </span>
+                              <span className="text-gray-700 dark:text-gray-300">{Math.floor(set.restTime / 60)}분</span>
                             </div>
                             <div>
-                              <span className="text-gray-600">메모: </span>
-                              <span className="text-xs">{set.memo || '-'}</span>
+                              <span className="text-gray-500">메모: </span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300">{set.memo || '-'}</span>
                             </div>
                           </div>
                         )}
@@ -737,42 +737,42 @@ export default function HistoryPage() {
 
                       {/* 데스크톱 뷰 */}
                       <div className="hidden sm:grid sm:grid-cols-6 gap-2 text-sm py-2">
-                        <div className="font-medium text-gray-900">{setIndex + 1}</div>
-                        <div className="text-gray-700">
+                        <div className="font-medium text-gray-700 dark:text-gray-300">{setIndex + 1}</div>
+                        <div className="text-gray-700 dark:text-gray-300">
                           {set.completed ? (
                             <>
-                              <span className={set.actualReps >= set.targetReps ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                              <span className={set.actualReps >= set.targetReps ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                 {set.actualReps}
                               </span>
-                              <span className="text-gray-400">/{set.targetReps}</span>
+                              <span className="text-gray-400 dark:text-gray-600">/{set.targetReps}</span>
                             </>
                           ) : (
-                            <span className="text-gray-400">-/{set.targetReps}</span>
+                            <span className="text-gray-400 dark:text-gray-600">-/{set.targetReps}</span>
                           )}
                         </div>
-                        <div className="text-gray-700">
+                        <div className="text-gray-700 dark:text-gray-300">
                           {set.completed && set.targetWeight ? (
                             <>
-                              <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-green-600 font-medium' : 'text-orange-600'}>
+                              <span className={set.actualWeight && set.actualWeight >= set.targetWeight ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                 {set.actualWeight || set.targetWeight}
                               </span>
-                              {set.targetWeight && <span className="text-gray-400">/{set.targetWeight}kg</span>}
+                              {set.targetWeight && <span className="text-gray-400 dark:text-gray-600">/{set.targetWeight}kg</span>}
                             </>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 dark:text-gray-600">-</span>
                           )}
                         </div>
-                        <div className="text-gray-600">{Math.floor(set.restTime / 60)}분</div>
-                        <div className="text-gray-600 text-xs">
+                        <div className="text-gray-700 dark:text-gray-300">{Math.floor(set.restTime / 60)}분</div>
+                        <div className="text-gray-700 dark:text-gray-300 text-xs">
                           {set.completed ? (set.memo || '-') : '-'}
                         </div>
                         <div>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             !set.completed
-                              ? 'bg-gray-100 text-gray-500'
+                              ? 'bg-gray-100 dark:bg-white/5 text-gray-500'
                               : set.actualReps >= set.targetReps
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-orange-100 text-orange-700'
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : 'bg-amber-400/10 text-amber-400'
                           }`}>
                             {!set.completed ? '미완료' : set.actualReps >= set.targetReps ? '완료' : '미달'}
                           </span>
@@ -783,35 +783,35 @@ export default function HistoryPage() {
                 </div>
 
                 {/* 운동별 통계 */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                     <div>
-                      <div className="text-lg font-bold text-blue-600">
+                      <div className="text-lg font-bold text-blue-600 dark:text-indigo-400">
                         {exercise.sets.filter(s => s.completed).reduce((total, set) => total + set.actualReps, 0)}
                       </div>
-                      <div className="text-xs text-gray-600">총 횟수</div>
+                      <div className="text-xs text-gray-500">총 횟수</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-green-600">
+                      <div className="text-lg font-bold text-emerald-400">
                         {exercise.sets.filter(s => s.completed && s.actualWeight).length > 0
                           ? Math.max(...exercise.sets.filter(s => s.completed && s.actualWeight).map(s => s.actualWeight!))
                           : '-'
                         }
                         {exercise.sets.filter(s => s.completed && s.actualWeight).length > 0 && 'kg'}
                       </div>
-                      <div className="text-xs text-gray-600">최대 무게</div>
+                      <div className="text-xs text-gray-500">최대 무게</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-purple-600">
+                      <div className="text-lg font-bold text-violet-400">
                         {exercise.sets.filter(s => s.completed).length}/{exercise.sets.length}
                       </div>
-                      <div className="text-xs text-gray-600">완료 세트</div>
+                      <div className="text-xs text-gray-500">완료 세트</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-orange-600">
+                      <div className="text-lg font-bold text-amber-400">
                         {exercise.exerciseTime > 0 ? formatTime(exercise.exerciseTime) : '-'}
                       </div>
-                      <div className="text-xs text-gray-600">운동 시간</div>
+                      <div className="text-xs text-gray-500">운동 시간</div>
                     </div>
                   </div>
                 </div>
