@@ -149,7 +149,8 @@ export default function ProgramsPage() {
   const handleDeleteProgram = async (programId: number) => {
     try {
       await deleteWorkoutProgram(programId);
-      await fetchWorkoutPrograms(); // 목록 새로고침
+      // 소프트삭제된 프로그램을 목록에서 즉시 숨김 처리
+      setPrograms((prev) => prev.filter((program) => program.id !== programId));
       setShowDeleteModal(false);
       setDeletingProgramId(null);
     } catch (error) {
