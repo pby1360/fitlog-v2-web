@@ -3,6 +3,7 @@ import { AppRoutes } from './router';
 import { useEffect, useState } from 'react';
 import { getMyInfo } from './services/api';
 import { setNavigator } from './utils/navigationService';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const AppNavigator = () => {
   const navigate = useNavigate();
@@ -37,11 +38,11 @@ function App() {
   }
 
   return (
-    <BrowserRouter basename={__BASE_PATH__}>
-      <div className="min-h-screen bg-gray-50">
+    <ThemeProvider>
+      <BrowserRouter basename={__BASE_PATH__}>
         <AppNavigator />
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
