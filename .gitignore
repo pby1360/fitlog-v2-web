@@ -1,3 +1,7 @@
 node_modules
 .env**
 out/**
+
+# Firebase 배포 캐시 (수백 MB까지 커짐)
+.firebase/
+firebase-debug.log*
