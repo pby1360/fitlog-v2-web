@@ -1,0 +1,78 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: fitlog-505315
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # WIF 사용에 필수. 없으면 GitHub이 OIDC 토큰을 발급하지 않는다.
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── .env 생성 ──
+      # 🚨 이 단계가 없으면 조용히 망가진다.
+      # .gitignore 에 `.env**` 가 있어 레포에 .env 가 없다. 그대로 빌드하면
+      # import.meta.env.VITE_API_BASE_URL 이 undefined 로 치환되어
+      # "빌드는 성공하는데 API 호출만 전부 실패하는" 상태가 배포된다.
+      - name: Create .env
+        run: |
+          if [ -z "${{ vars.VITE_API_BASE_URL }}" ]; then
+            echo "::error::VITE_API_BASE_URL 저장소 변수가 비어 있습니다. Settings → Variables 에 등록하세요."
+            exit 1
+          fi
+          echo "VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}" > .env
+          echo "생성된 .env:"
+          cat .env
+
+      - name: Build
+        run: npm run build
+
+      # ── 빌드 산출물 검증 ──
+      # firebase.json 의 public 이 "out" 이다(vite outDir). 경로가 어긋나면
+      # 빈 사이트가 배포되므로 업로드 전에 막는다.
+      - name: Verify build output
+        run: |
+          test -f out/index.html || { echo "::error::out/index.html 없음 — vite outDir 확인"; exit 1; }
+          test -d out/assets    || { echo "::error::out/assets 없음"; exit 1; }
+          # 번들에 API 주소가 실제로 박혔는지 확인 (undefined 배포 방지)
+          grep -rq "$(echo '${{ vars.VITE_API_BASE_URL }}' | sed 's|https\?://||')" out/assets \
+            || { echo "::error::번들에 API 주소가 없음 — .env 주입 실패"; exit 1; }
+          echo "OK - $(find out -type f | wc -l) files"
+
+      # ── 인증: 키 파일 없이 OIDC 토큰을 임시 자격증명으로 교환 ──
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA }}
+
+      # firebase-tools 는 GOOGLE_APPLICATION_CREDENTIALS(위 단계가 설정)를 자동으로 사용한다.
+      # 별칭(.firebaserc 의 `fitlog`) 대신 --project 로 명시해 CI에서의 모호함을 없앤다.
+      - name: Deploy to Firebase Hosting
+        run: npx firebase deploy --only hosting --project ${{ env.PROJECT_ID }} --non-interactive
+
+      - name: Summary
+        run: |
+          echo "### 배포 완료 :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "- 커밋: \`${GITHUB_SHA}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- https://fit2log.com" >> $GITHUB_STEP_SUMMARY
+          echo "- https://fitlog-505315-5af8e.web.app" >> $GITHUB_STEP_SUMMARY
