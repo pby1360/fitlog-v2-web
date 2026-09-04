@@ -16,6 +16,7 @@ import {
   markExerciseStarted,
   addSetToWorkoutSessionExercise,
   addExerciseToWorkoutSession,
+  reorderWorkoutSessionExercises,
   CustomExerciseDto
 } from '@/services/api';
 
@@ -75,6 +76,10 @@ export default function WorkoutSessionPage() {
   const [pendingWorkout, setPendingWorkout] = useState<WorkoutResponse | null>(null);
   const [pendingSets, setPendingSets] = useState<{ reps: number; weight: number; restTime: number }[]>([]);
   const [isAddingExercise, setIsAddingExercise] = useState(false);
+  // 순서 편집 모드: reorderDraft가 null이 아니면 편집 중
+  const [reorderDraft, setReorderDraft] = useState<ExerciseSet[] | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
 
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
 
@@ -267,6 +272,9 @@ export default function WorkoutSessionPage() {
     const transformed = transformSessionResponse(sessionResponse, allExercises);
     // totalTime은 타이머(localTotalPausedMsRef 기반)가 정확히 관리하므로 API 응답으로 덮어쓰지 않음
     setWorkoutSession(prev => prev ? { ...transformed, totalTime: prev.totalTime } : transformed);
+    // 세션이 갱신되면 편집 중이던 순서 작업본은 무효 -> 편집 모드 종료
+    setReorderDraft(null);
+    setDraggedExerciseIndex(null);
   };
 
   // 데이터 로딩
@@ -604,6 +612,85 @@ export default function WorkoutSessionPage() {
     }
   };
 
+  // 운동 순서 편집: 현재 진행 중인 운동 이후의 미완료 운동만 대상
+  const getReorderableIndices = (exercises: ExerciseSet[]) => {
+    if (!workoutSession) return [];
+    return exercises
+      .map((ex, i) => ({ ex, i }))
+      .filter(({ ex, i }) => i > workoutSession.currentExerciseIndex && !ex.skipped && !ex.completed)
+      .map(({ i }) => i);
+  };
+
+  const startReorder = () => {
+    if (!workoutSession) return;
+    setReorderDraft([...workoutSession.exercises]);
+  };
+
+  const cancelReorder = () => {
+    setReorderDraft(null);
+    setDraggedExerciseIndex(null);
+  };
+
+  const moveExercise = (index: number, direction: 'up' | 'down') => {
+    if (!reorderDraft) return;
+    const indices = getReorderableIndices(reorderDraft);
+    const pos = indices.indexOf(index);
+    const targetPos = direction === 'up' ? pos - 1 : pos + 1;
+    if (pos === -1 || targetPos < 0 || targetPos >= indices.length) return;
+
+    const targetIndex = indices[targetPos];
+    const updated = [...reorderDraft];
+    [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
+    setReorderDraft(updated);
+  };
+
+  const handleExerciseDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedExerciseIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleExerciseDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleExerciseDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    setDraggedExerciseIndex(null);
+    if (!reorderDraft || draggedExerciseIndex === null || draggedExerciseIndex === targetIndex) return;
+
+    // 출발/목표가 모두 순서 변경 가능한 운동일 때만 이동
+    const indices = getReorderableIndices(reorderDraft);
+    if (!indices.includes(draggedExerciseIndex) || !indices.includes(targetIndex)) return;
+
+    const updated = [...reorderDraft];
+    const [moved] = updated.splice(draggedExerciseIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+    setReorderDraft(updated);
+  };
+
+  const handleExerciseDragEnd = () => {
+    setDraggedExerciseIndex(null);
+  };
+
+  const saveReorder = async () => {
+    if (!workoutSession || !reorderDraft) return;
+    setIsSavingOrder(true);
+    try {
+      const updatedSession = await reorderWorkoutSessionExercises(
+        workoutSession.id,
+        reorderDraft.map((ex, i) => ({ workoutSessionExerciseId: ex.id, order: i + 1 }))
+      );
+      // 성공 시 updateSessionState가 편집 모드까지 종료시킴
+      updateSessionState(updatedSession);
+    } catch (error) {
+      console.error('Failed to reorder exercises:', error);
+      alert('운동 순서를 변경하는 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
   // 헬퍼 함수
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -659,6 +746,15 @@ export default function WorkoutSessionPage() {
   const currentBodyPart = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'bodyPart') : '';
   const currentExerciseName = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'name') : '';
   const progress = getWorkoutProgress();
+
+  // 운동 순서 편집용 파생 값
+  const isSessionEditable = workoutSession.status !== 'COMPLETED' && workoutSession.status !== 'CANCELLED';
+  const isReorderMode = reorderDraft !== null;
+  const listExercises = reorderDraft ?? workoutSession.exercises;
+  const reorderableIndices = getReorderableIndices(listExercises);
+  const orderChanged = reorderDraft
+    ? reorderDraft.some((ex, i) => ex.id !== workoutSession.exercises[i]?.id)
+    : false;
 
   // 운동 추가 모달용: 카탈로그 필터링 및 부위별 그룹핑
   const filteredWorkouts = allExercises.filter(w =>
@@ -964,9 +1060,41 @@ export default function WorkoutSessionPage() {
 
         {/* 운동 목록 */}
         <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/8 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 목록</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">운동 목록</h3>
+            {isSessionEditable && (
+              isReorderMode ? (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={cancelReorder} disabled={isSavingOrder}>
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={saveReorder} disabled={isSavingOrder || !orderChanged}>
+                    {isSavingOrder ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              ) : reorderableIndices.length >= 2 ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startReorder}
+                  className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+                >
+                  <i className="ri-drag-move-line mr-1"></i>
+                  순서 편집
+                </Button>
+              ) : null
+            )}
+          </div>
+
+          {isReorderMode && (
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <i className="ri-information-line mr-1"></i>
+              남은 운동만 순서를 바꿀 수 있습니다. 드래그하거나 화살표를 사용하세요.
+            </p>
+          )}
+
           <div className="space-y-3">
-            {[...workoutSession.exercises]
+            {[...listExercises]
               .map((ex, i) => ({ ex, i }))
               .sort((a, b) => {
                 const priority = (item: { ex: ExerciseSet; i: number }) => {
@@ -980,10 +1108,20 @@ export default function WorkoutSessionPage() {
                 if (pa !== pb) return pa - pb;
                 return a.i - b.i; // 같은 그룹 내에서는 원래 순서 유지
               })
-              .map(({ ex: exercise, i: exerciseIndex }) => (
+              .map(({ ex: exercise, i: exerciseIndex }) => {
+                const reorderPos = reorderableIndices.indexOf(exerciseIndex);
+                const canReorder = isReorderMode && reorderPos !== -1;
+                return (
               <div
                 key={exercise.id}
-                className={`p-4 rounded-lg border-2 transition-colors ${
+                draggable={canReorder}
+                onDragStart={canReorder ? (e) => handleExerciseDragStart(e, exerciseIndex) : undefined}
+                onDragOver={canReorder ? handleExerciseDragOver : undefined}
+                onDrop={canReorder ? (e) => handleExerciseDrop(e, exerciseIndex) : undefined}
+                onDragEnd={canReorder ? handleExerciseDragEnd : undefined}
+                className={`p-4 rounded-lg border-2 transition-colors ${canReorder ? 'cursor-move ' : ''}${
+                  draggedExerciseIndex === exerciseIndex ? 'opacity-50 ' : ''
+                }${
                   exerciseIndex === workoutSession.currentExerciseIndex && workoutSession.status === 'IN_PROGRESS'
                     ? 'border-blue-200 bg-blue-50 dark:border-indigo-500/30 dark:bg-indigo-500/5'
                     : exercise.skipped
@@ -993,9 +1131,44 @@ export default function WorkoutSessionPage() {
                         : 'border-gray-100 dark:border-white/5 bg-white dark:bg-white/[0.02]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{getExerciseProperty(exercise.exerciseId, 'name')}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {canReorder && (
+                        <i className="ri-draggable text-lg text-gray-300 dark:text-gray-700 flex-shrink-0"></i>
+                      )}
+                      <div className="font-medium text-gray-900 dark:text-white truncate">{getExerciseProperty(exercise.exerciseId, 'name')}</div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
+                      {canReorder && (
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveExercise(exerciseIndex, 'up'); }}
+                            disabled={reorderPos === 0}
+                            className={`w-6 h-6 flex items-center justify-center rounded ${
+                              reorderPos === 0
+                                ? 'text-gray-200 dark:text-gray-800 cursor-not-allowed'
+                                : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
+                            }`}
+                            title="위로"
+                          >
+                            <i className="ri-arrow-up-s-line text-lg"></i>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveExercise(exerciseIndex, 'down'); }}
+                            disabled={reorderPos === reorderableIndices.length - 1}
+                            className={`w-6 h-6 flex items-center justify-center rounded ${
+                              reorderPos === reorderableIndices.length - 1
+                                ? 'text-gray-200 dark:text-gray-800 cursor-not-allowed'
+                                : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
+                            }`}
+                            title="아래로"
+                          >
+                            <i className="ri-arrow-down-s-line text-lg"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -1020,10 +1193,11 @@ export default function WorkoutSessionPage() {
                   ))}
                 </div>
               </div>
-            ))}
+                );
+              })}
           </div>
 
-          {workoutSession.status !== 'COMPLETED' && workoutSession.status !== 'CANCELLED' && (
+          {isSessionEditable && !isReorderMode && (
             <button
               onClick={() => setShowAddExerciseModal(true)}
               className="w-full mt-3 py-3 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg text-gray-400 dark:text-gray-600 hover:border-blue-300 dark:hover:border-indigo-400/50 hover:text-blue-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-2"
