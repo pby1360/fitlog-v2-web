@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Button from '../base/Button';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -9,11 +7,9 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginModalProps) {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const BASE_AUTH_URL = import.meta.env.VITE_API_BASE_URL + '/oauth2/authorization';
-  console.log('BASE_AUTH_URL:', BASE_AUTH_URL);
   if (!isOpen) return null;
 
   const handleSocialLogin = async (provider: string) => {
@@ -21,12 +17,6 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
     
     // 백엔드 서버의 OAuth2 로그인 시작 URL
     window.location.href = BASE_AUTH_URL + `/${provider}`;
-  };
-
-  const handleEmailLogin = () => {
-    // 이메일 로그인 처리
-    onClose();
-    navigate('/dashboard');
   };
 
   return (
@@ -57,7 +47,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
           </div>
 
           {/* 소셜 로그인 버튼들 */}
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3">
             <button
               onClick={() => handleSocialLogin('google')}
               disabled={isLoading}
@@ -87,95 +77,7 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
               </svg>
               카카오로 {isSignUp ? '가입하기' : '로그인'}
             </button>
-
-
           </div>
-
-          {/* 구분선 */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">또는</span>
-            </div>
-          </div>
-
-          {/* 이메일 로그인 */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                이메일
-              </label>
-              <input
-                type="email"
-                placeholder="이메일을 입력하세요"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                비밀번호
-              </label>
-              <input
-                type="password"
-                placeholder="비밀번호를 입력하세요"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {isSignUp && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  비밀번호 확인
-                </label>
-                <input
-                  type="password"
-                  placeholder="비밀번호를 다시 입력하세요"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            )}
-
-            <Button
-              onClick={handleEmailLogin}
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  처리중...
-                </div>
-              ) : (
-                isSignUp ? '회원가입' : '로그인'
-              )}
-            </Button>
-          </div>
-
-          {/* 하단 링크 */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {isSignUp ? '이미 계정이 있으신가요?' : '계정이 없으신가요?'}
-              <button
-                onClick={() => {
-                  // 모달 타입 변경 로직은 부모 컴포넌트에서 처리
-                }}
-                className="ml-1 text-blue-600 hover:text-blue-700 font-medium"
-              >
-                {isSignUp ? '로그인하기' : '회원가입하기'}
-              </button>
-            </p>
-          </div>
-
-          {!isSignUp && (
-            <div className="mt-4 text-center">
-              <button className="text-sm text-gray-600 hover:text-gray-700">
-                비밀번호를 잊으셨나요?
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
