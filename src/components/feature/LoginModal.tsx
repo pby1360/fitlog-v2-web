@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -78,6 +79,11 @@ export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginM
               카카오로 {isSignUp ? '가입하기' : '로그인'}
             </button>
           </div>
+
+          <p className="mt-6 text-xs text-center text-gray-500 leading-relaxed">
+            로그인하면 <Link to="/terms" onClick={onClose} className="underline">이용약관</Link>과{' '}
+            <Link to="/privacy" onClick={onClose} className="underline">개인정보처리방침</Link>에 따라 정보가 처리됩니다.
+          </p>
         </div>
       </div>
     </div>

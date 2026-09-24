@@ -2,12 +2,11 @@
 import { useState, useEffect } from 'react';
 import Header from '../../components/feature/Header';
 import Input from '../../components/base/Input';
-import { getMyProfile, updateMyProfile, type MemberProfile } from '../../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { getMyProfile, updateMyProfile, deleteMyAccount, type MemberProfile } from '../../services/api';
 
 interface EditData {
   nickname: string;
-  phone: string;
-  birthDate: string;
   height: string;
   weight: string;
   goal: string;
@@ -17,8 +16,6 @@ interface EditData {
 function profileToEditData(profile: MemberProfile): EditData {
   return {
     nickname: profile.nickname ?? '',
-    phone: profile.phone ?? '',
-    birthDate: profile.birthDate ?? '',
     height: profile.height != null ? String(profile.height) : '',
     weight: profile.weight != null ? String(profile.weight) : '',
     goal: profile.goal ?? '',
@@ -42,12 +39,30 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState<MemberProfile | null>(null);
   const [editData, setEditData] = useState<EditData>({
-    nickname: '', phone: '', birthDate: '', height: '', weight: '', goal: '', experience: '',
+    nickname: '', height: '', weight: '', goal: '', experience: '',
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // 회원 탈퇴: 서버에서 모든 데이터를 파기한 뒤 이 기기의 로그인 정보도 지운다
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMyAccount();
+      localStorage.clear();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : '탈퇴 처리에 실패했습니다.');
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -76,8 +91,6 @@ export default function ProfilePage() {
     try {
       const updated = await updateMyProfile({
         nickname: editData.nickname,
-        phone: editData.phone,
-        birthDate: editData.birthDate,
         height: editData.height !== '' ? Number(editData.height) : null,
         weight: editData.weight !== '' ? Number(editData.weight) : null,
         goal: editData.goal,
@@ -256,24 +269,6 @@ export default function ProfilePage() {
               <Value muted>{profileData.email}</Value>
             </Field>
 
-            {/* 전화번호 */}
-            <Field label="전화번호" icon="ri-phone-line">
-              {isEditing ? (
-                <Input value={editData.phone} onChange={e => handleInputChange('phone', e.target.value)} placeholder="010-0000-0000" />
-              ) : (
-                <Value>{profileData.phone || '-'}</Value>
-              )}
-            </Field>
-
-            {/* 생년월일 */}
-            <Field label="생년월일" icon="ri-cake-line">
-              {isEditing ? (
-                <Input type="date" value={editData.birthDate} onChange={e => handleInputChange('birthDate', e.target.value)} />
-              ) : (
-                <Value>{profileData.birthDate || '-'}</Value>
-              )}
-            </Field>
-
             {/* 키 */}
             <Field label="키" icon="ri-ruler-line">
               {isEditing ? (
@@ -348,24 +343,17 @@ export default function ProfilePage() {
           </div>
 
           <div className="divide-y divide-gray-100 dark:divide-white/5">
-            <SettingRow
-              icon="ri-notification-3-line"
-              iconBg="bg-blue-50 dark:bg-indigo-500/10"
-              iconColor="text-blue-600 dark:text-indigo-400"
-              title="알림 설정"
-              desc="운동 알림 및 성과 알림을 받습니다"
-              toggled={true}
-            />
-            <SettingRow
-              icon="ri-cloud-line"
-              iconBg="bg-blue-50 dark:bg-indigo-500/10"
-              iconColor="text-blue-600 dark:text-indigo-400"
-              title="데이터 백업"
-              desc="운동 기록을 클라우드에 백업합니다"
-              toggled={false}
-            />
+            <div className="px-6 py-4 text-xs text-gray-500 space-y-1">
+              <p>키·몸무게·운동 목표·경력은 선택 입력 항목이며 프로필 표시에만 사용됩니다. 비워 두면 저장된 값이 삭제됩니다.</p>
+              <p>
+                자세한 내용은 <Link to="/privacy" className="underline">개인정보처리방침</Link>을 확인하세요.
+              </p>
+            </div>
             <div className="px-6 py-4">
-              <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors">
+              <button
+                onClick={() => { setDeleteError(null); setShowDeleteModal(true); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+              >
                 <i className="ri-delete-bin-line" />
                 계정 삭제
               </button>
@@ -374,6 +362,35 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">계정을 삭제할까요?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              프로필, 운동 프로그램, 운동 기록, 직접 만든 운동이 모두 즉시 삭제되며 되돌릴 수 없습니다.
+            </p>
+            <p className="text-xs text-gray-500 mb-5">모든 기기에서 로그아웃됩니다.</p>
+            {deleteError && <p className="text-sm text-red-500 mb-4">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-sm text-gray-700 dark:text-gray-300"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {isDeleting ? '삭제 중...' : '영구 삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -430,23 +447,3 @@ function ExperienceBadge({ value }: { value: string | null }) {
   );
 }
 
-function SettingRow({ icon, iconBg, iconColor, title, desc, toggled }: {
-  icon: string; iconBg: string; iconColor: string; title: string; desc: string; toggled: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between px-6 py-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
-          <i className={`${icon} ${iconColor} text-sm`} />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</p>
-          <p className="text-xs text-gray-500">{desc}</p>
-        </div>
-      </div>
-      <button className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${toggled ? 'bg-indigo-600 dark:bg-indigo-600' : 'bg-gray-200 dark:bg-white/10'}`}>
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${toggled ? 'translate-x-6' : 'translate-x-1'}`} />
-      </button>
-    </div>
-  );
-}

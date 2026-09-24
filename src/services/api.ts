@@ -313,8 +313,6 @@ export interface MemberProfile {
   nickname: string;
   imageUrl: string | null;
   provider: string;
-  phone: string | null;
-  birthDate: string | null;  // "YYYY-MM-DD"
   height: number | null;
   weight: number | null;
   goal: string | null;
@@ -327,8 +325,6 @@ export interface MemberProfile {
 
 export interface MemberUpdateRequest {
   nickname: string;
-  phone: string;
-  birthDate: string;
   height: number | null;
   weight: number | null;
   goal: string;
@@ -344,6 +340,11 @@ export const updateMyProfile = async (data: MemberUpdateRequest): Promise<Member
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+};
+
+// 회원 탈퇴: 서버에서 개인정보·운동 기록·로그인 세션을 모두 파기한다
+export const deleteMyAccount = async (): Promise<void> => {
+  await fetchWithAuth(`${API_BASE_URL}/members/me`, { method: 'DELETE' });
 };
 
 // Workout Session Types
