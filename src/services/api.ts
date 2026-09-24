@@ -28,26 +28,67 @@ export class ApiError extends Error {
 let isRedirecting = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-const tryRefreshToken = async (): Promise<string | null> => {
+// Refresh 요청 1회.
+// - 401/400: 로그인 세션이 끝난 것 → null (호출 측에서 로그아웃)
+// - 네트워크 오류/5xx: 일시 장애 → 예외 (로그아웃하지 않고 해당 요청만 실패)
+const requestTokenRefresh = async (): Promise<string | null> => {
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) return null;
 
+  let response: Response;
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    return data.accessToken;
   } catch {
-    return null;
+    throw new ApiError('네트워크 연결을 확인해주세요.', 0);
   }
+
+  if (response.status >= 500) {
+    throw new ApiError('서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.', response.status);
+  }
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  localStorage.setItem('accessToken', data.accessToken);
+  localStorage.setItem('refreshToken', data.refreshToken);
+  return data.accessToken;
+};
+
+// 여러 탭이 같은 Refresh 토큰으로 동시에 재발급하지 않도록 Web Locks 로 직렬화한다.
+// 락을 얻었을 때 다른 탭이 이미 토큰을 갱신했다면(localStorage 값이 바뀜) 그 토큰을 그대로 쓴다.
+const refreshAccessToken = async (staleAccessToken: string | null): Promise<string | null> => {
+  const run = async () => {
+    const current = localStorage.getItem('accessToken');
+    if (current && current !== staleAccessToken) return current;
+    return requestTokenRefresh();
+  };
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request('fitlog-token-refresh', run);
+  }
+  return run();
+};
+
+export interface LoginTokens {
+  accessToken: string;
+  refreshToken: string;
+  imageUrl: string;
+  provider: string;
+}
+
+// OAuth 콜백으로 받은 일회용 코드를 토큰으로 교환한다 (코드는 60초, 1회용)
+export const exchangeLoginCode = async (code: string): Promise<LoginTokens> => {
+  const response = await fetch(`${API_BASE_URL}/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) {
+    throw new ApiError('로그인 코드 교환에 실패했습니다.', response.status);
+  }
+  return response.json();
 };
 
 // 서버에 저장된 Refresh Token을 폐기한다. 네트워크 실패여도 로컬 로그아웃은 계속 진행해야 하므로 예외를 던지지 않는다.
@@ -87,7 +128,7 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
 
   if (response.status === 401) {
     if (!refreshPromise) {
-      refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
+      refreshPromise = refreshAccessToken(token).finally(() => { refreshPromise = null; });
     }
 
     const newToken = await refreshPromise;

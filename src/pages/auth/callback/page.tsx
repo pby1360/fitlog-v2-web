@@ -1,39 +1,47 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { exchangeLoginCode } from '../../../services/api';
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // 교환 코드는 한 번만 쓸 수 있으므로 StrictMode 이중 실행에서도 한 번만 요청한다
+  const exchangeStartedRef = useRef(false);
 
   useEffect(() => {
     const error = searchParams.get('error');
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
-    const imageUrl = searchParams.get('imageUrl');
-    const provider = searchParams.get('provider');
+    const message = searchParams.get('message');
+    const code = searchParams.get('code');
 
-    // 토큰이 담긴 쿼리 문자열을 주소창·세션 히스토리에서 즉시 제거한다
+    // 코드가 담긴 쿼리 문자열을 주소창·세션 히스토리에서 즉시 제거한다
     window.history.replaceState(window.history.state, '', window.location.pathname);
 
     if (error) {
-      const message = searchParams.get('message');
       setErrorMessage(message || '로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
       return;
     }
 
-    if (accessToken && refreshToken) {
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('imageUrl', imageUrl || '');
-      if (provider) {
-        localStorage.setItem('provider', provider);
-      }
-      // 뒤로가기로 콜백 URL에 돌아오지 않도록 현재 히스토리 항목을 대체한다
-      navigate('/dashboard', { replace: true });
-    } else {
+    if (!code) {
       setErrorMessage('로그인 정보를 받아오지 못했습니다. 다시 시도해주세요.');
+      return;
     }
+
+    if (exchangeStartedRef.current) return;
+    exchangeStartedRef.current = true;
+
+    exchangeLoginCode(code)
+      .then((result) => {
+        localStorage.setItem('accessToken', result.accessToken);
+        localStorage.setItem('refreshToken', result.refreshToken);
+        localStorage.setItem('imageUrl', result.imageUrl || '');
+        localStorage.setItem('provider', result.provider);
+        // 뒤로가기로 콜백 URL에 돌아오지 않도록 현재 히스토리 항목을 대체한다
+        navigate('/dashboard', { replace: true });
+      })
+      .catch(() => {
+        setErrorMessage('로그인이 만료되었습니다. 다시 시도해주세요.');
+      });
   }, [searchParams, navigate]);
 
   if (errorMessage) {
@@ -46,7 +54,7 @@ export default function AuthCallbackPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">로그인 실패</h2>
           <p className="text-sm text-gray-600 mb-6">{errorMessage}</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/', { replace: true })}
             className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             홈으로 돌아가기
