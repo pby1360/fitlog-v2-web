@@ -65,7 +65,6 @@ export default function WorkoutSessionPage() {
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showStopModal, setShowStopModal] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
@@ -561,28 +560,6 @@ export default function WorkoutSessionPage() {
     }
   };
 
-  const resetWorkout = () => {
-    if (workoutSession) {
-      const resetSession: WorkoutSession = {
-        ...workoutSession,
-        status: 'IN_PROGRESS',
-        currentExerciseIndex: 0,
-        currentSetIndex: 0,
-        totalTime: 0,
-        bodyPartTime: 0,
-        exercises: workoutSession.exercises.map(ex => ({
-          ...ex,
-          sets: ex.sets.map(set => ({ ...set, completed: false, actualReps: undefined, actualWeight: undefined, actualMemo: undefined })),
-          completed: false
-        }))
-      };
-      setWorkoutSession(resetSession);
-      setIsResting(false);
-      setRestTimeLeft(0);
-      setShowResetModal(false);
-    }
-  };
-
   const skipExercise = async () => {
     if (!workoutSession) return;
     const currentExercise = workoutSession.exercises[workoutSession.currentExerciseIndex];
@@ -750,14 +727,6 @@ export default function WorkoutSessionPage() {
                   </Button>
                 </>
               )}
-              {/* <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowResetModal(true)}
-              >
-                <i className="ri-refresh-line mr-1"></i>
-                초기화
-              </Button> */}
             </div>
           </div>
         </div>
@@ -1201,18 +1170,6 @@ export default function WorkoutSessionPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowStopModal(false)} className="flex-1">취소</Button>
               <Button onClick={stopWorkout} className="flex-1 bg-red-600 hover:bg-red-700">종료</Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showResetModal && (
-        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 flex items-center justify-center p-4 z-50">
-           <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 초기화</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">운동을 처음부터 다시 시작하시겠습니까? 현재까지의 진행상황이 초기화됩니다.</p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowResetModal(false)} className="flex-1">취소</Button>
-              <Button onClick={resetWorkout} className="flex-1">초기화</Button>
             </div>
           </div>
         </div>

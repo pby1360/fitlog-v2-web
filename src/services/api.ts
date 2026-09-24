@@ -136,14 +136,14 @@ export const addWorkout = async (name: string, workoutPartId: number): Promise<v
 };
 
 export const updateWorkout = async (id: number, name: string, workoutPartId: number): Promise<void> => {
-  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ name, workoutPartId }),
   });
 };
 
 export const deleteWorkout = async (id: number): Promise<void> => {
-  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts/${id}`, {
     method: 'DELETE',
   });
 };
