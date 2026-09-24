@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 AP
 interface WorkoutPartResponse {
   id: number;
   name: string;
+  editable: boolean; // 본인이 만든 부위만 true (공용 부위는 수정/삭제 불가)
 }
 
 export interface WorkoutResponse {
@@ -12,6 +13,7 @@ export interface WorkoutResponse {
   name: string;
   bodyPart: string;
   bodyPartId: number;
+  editable: boolean; // 본인이 만든 운동만 true (공용 운동은 수정/삭제 불가)
 }
 
 // HTTP 상태 코드를 함께 전달하는 API 오류 (예: 409 충돌 시 화면에서 분기)

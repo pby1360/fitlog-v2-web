@@ -669,8 +669,9 @@ export default function WorkoutSessionPage() {
     // 운동 진행 화면
   const currentSet = getCurrentSet();
   const currentExercise = getCurrentExercise();
-  const currentBodyPart = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'bodyPart') : '';
-  const currentExerciseName = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'name') : '';
+  // 세션에 저장된 이름을 우선 사용한다 (종목 이름이 바뀌거나 보관돼 카탈로그에 없어도 표시)
+  const currentBodyPart = currentExercise ? (currentExercise.workoutPartName || getExerciseProperty(currentExercise.exerciseId, 'bodyPart')) : '';
+  const currentExerciseName = currentExercise ? (currentExercise.workoutName || getExerciseProperty(currentExercise.exerciseId, 'name')) : '';
   const progress = getWorkoutProgress();
 
   // 운동 추가 모달용: 카탈로그 필터링 및 부위별 그룹핑
@@ -998,7 +999,7 @@ export default function WorkoutSessionPage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{getExerciseProperty(exercise.exerciseId, 'name')}</div>
+                    <div className="font-medium text-gray-900 dark:text-white">{exercise.workoutName || getExerciseProperty(exercise.exerciseId, 'name')}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
                 </div>
 

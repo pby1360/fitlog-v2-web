@@ -9,6 +9,7 @@ import ManageWorkoutsView from './ManageWorkoutsView';
 interface WorkoutPart {
   id: number;
   name: string;
+  editable: boolean; // 본인이 만든 부위만 삭제 가능
 }
 
 interface Exercise {
@@ -16,6 +17,7 @@ interface Exercise {
   name: string;
   bodyPart: string;
   bodyPartId: number;
+  editable: boolean; // 본인이 만든 운동만 수정/삭제 가능
 }
 
 // 서버 응답에 맞춰 Program 인터페이스 재정의
@@ -762,12 +764,14 @@ export default function ProgramsPage() {
                         <span>{bodyPart.name}</span>
                       </div>
                     </button>
+                    {bodyPart.editable && (
                     <button
                       onClick={() => handleDeleteBodyPart(bodyPart.id)}
                       className="absolute -top-2 -right-2 w-6 h-6 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <i className="ri-close-line text-xs"></i>
                     </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -866,6 +870,8 @@ export default function ProgramsPage() {
                                     </>
                                   )}
                                 </Button>
+                                {exercise.editable && (
+                                <>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -887,6 +893,8 @@ export default function ProgramsPage() {
                                 >
                                   <i className="ri-delete-bin-line"></i>
                                 </Button>
+                                </>
+                                )}
                               </div>
                             </div>
                           ))}
