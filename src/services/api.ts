@@ -39,6 +39,22 @@ const tryRefreshToken = async (): Promise<string | null> => {
   }
 };
 
+// 서버에 저장된 Refresh Token을 폐기한다. 네트워크 실패여도 로컬 로그아웃은 계속 진행해야 하므로 예외를 던지지 않는다.
+export const revokeRefreshToken = async (): Promise<void> => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return;
+
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // 무시: 토큰은 만료 시각이 지나면 어차피 무효화된다
+  }
+};
+
 const logout = () => {
   if (!isRedirecting) {
     isRedirecting = true;
