@@ -13,6 +13,9 @@ export default function AuthCallbackPage() {
     const imageUrl = searchParams.get('imageUrl');
     const provider = searchParams.get('provider');
 
+    // 토큰이 담긴 쿼리 문자열을 주소창·세션 히스토리에서 즉시 제거한다
+    window.history.replaceState(window.history.state, '', window.location.pathname);
+
     if (error) {
       const message = searchParams.get('message');
       setErrorMessage(message || '로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -26,7 +29,8 @@ export default function AuthCallbackPage() {
       if (provider) {
         localStorage.setItem('provider', provider);
       }
-      navigate('/dashboard');
+      // 뒤로가기로 콜백 URL에 돌아오지 않도록 현재 히스토리 항목을 대체한다
+      navigate('/dashboard', { replace: true });
     } else {
       setErrorMessage('로그인 정보를 받아오지 못했습니다. 다시 시도해주세요.');
     }
