@@ -1,9 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import Header from '../../components/feature/Header';
-import Button from '../../components/base/Button';
 import Input from '../../components/base/Input';
-import { getMyProfile, updateMyProfile, MemberProfile } from '../../services/api';
+import { getMyProfile, updateMyProfile, type MemberProfile } from '../../services/api';
 
 interface EditData {
   nickname: string;

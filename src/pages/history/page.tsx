@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
-import { getWorkoutLogs, getWorkoutLog, WorkoutLogResponse, WorkoutLogPage } from '../../services/api';
+import { getWorkoutLogs, getWorkoutLog, type WorkoutLogResponse, type WorkoutLogPage } from '../../services/api';
 
 type WorkoutRecord = WorkoutLogResponse;
 
@@ -15,7 +15,6 @@ export default function HistoryPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalDurationSeconds, setTotalDurationSeconds] = useState(0);
   const [totalCompletedSets, setTotalCompletedSets] = useState(0);
-  const [totalSets, setTotalSets] = useState(0);
   const [averageCompletionRate, setAverageCompletionRate] = useState(0);
   const [selectedRecord, setSelectedRecord] = useState<WorkoutRecord | null>(null);
   const [view, setView] = useState<'list' | 'calendar' | 'detail'>('list');
@@ -56,9 +55,8 @@ export default function HistoryPage() {
       setTotalElements(result.totalElements);
       setTotalDurationSeconds(result.totalDurationSeconds);
       setTotalCompletedSets(result.totalCompletedSets);
-      setTotalSets(result.totalSets);
       setAverageCompletionRate(result.averageCompletionRate);
-    } catch (err) {
+    } catch {
       setError('운동 기록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
@@ -238,7 +236,7 @@ export default function HistoryPage() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={view === 'list' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setView('list');
@@ -250,7 +248,7 @@ export default function HistoryPage() {
                   목록
                 </Button>
                 <Button
-                  variant={view === 'calendar' ? 'default' : 'outline'}
+                  variant="primary"
                   size="sm"
                   onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
                   className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
@@ -358,7 +356,7 @@ export default function HistoryPage() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={view === 'list' ? 'default' : 'outline'}
+                  variant="primary"
                   size="sm"
                   onClick={() => setView('list')}
                   className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
@@ -367,7 +365,7 @@ export default function HistoryPage() {
                   목록
                 </Button>
                 <Button
-                  variant={view === 'calendar' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
                   onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
                   className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"

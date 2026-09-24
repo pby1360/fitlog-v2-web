@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '@/components/base/Button';
-import Card from '@/components/base/Card';
 import Header from '@/components/feature/Header';
 import {
   getLatestWorkoutSession,
-  WorkoutSessionResponse,
+  type WorkoutSessionResponse,
   getWorkouts,
-  WorkoutResponse,
+  type WorkoutResponse,
   completeWorkoutSessionSet,
   pauseWorkoutSession,
   resumeWorkoutSession,
@@ -16,7 +15,7 @@ import {
   markExerciseStarted,
   addSetToWorkoutSessionExercise,
   addExerciseToWorkoutSession,
-  CustomExerciseDto
+  type CustomExerciseDto
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -80,7 +79,7 @@ export default function WorkoutSessionPage() {
   const navigate = useNavigate();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<{ play: () => void } | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
   const pauseStartMsRef = useRef<number | null>(null);
@@ -101,7 +100,9 @@ export default function WorkoutSessionPage() {
       if (parsed.sessionId === sessionId && parsed.exerciseIndex === exerciseIndex) {
         return parsed.time;
       }
-    } catch {}
+    } catch {
+      // 저장된 값이 손상됐으면 무시하고 서버 값 기준으로 계산한다
+    }
     return null;
   };
 
@@ -115,7 +116,9 @@ export default function WorkoutSessionPage() {
       if (!stored) return null;
       const parsed = JSON.parse(stored);
       if (parsed.sessionId === sessionId) return parsed.totalTime;
-    } catch {}
+    } catch {
+      // 저장된 값이 손상됐으면 무시하고 서버 값 기준으로 계산한다
+    }
     return null;
   };
 
@@ -308,7 +311,7 @@ export default function WorkoutSessionPage() {
   // 오디오 초기화
   useEffect(() => {
     // 간단한 비프음 생성
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -339,7 +342,7 @@ export default function WorkoutSessionPage() {
         newOscillator.start(audioContext.currentTime);
         newOscillator.stop(audioContext.currentTime + 0.5);
       }
-    } as any;
+    };
 
     return () => {
       audioContext.close();
@@ -828,7 +831,7 @@ export default function WorkoutSessionPage() {
               </div>
               <div className="text-center p-4 bg-green-50 dark:bg-emerald-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-green-600 dark:text-emerald-400 mb-1">
-                  {workoutSession.currentSetIndex + 1} / {currentExercise.sets.length}
+                  {workoutSession.currentSetIndex + 1} / {currentExercise?.sets.length ?? 0}
                 </div>
                 <div className="text-sm text-green-700 dark:text-emerald-500">세트</div>
               </div>

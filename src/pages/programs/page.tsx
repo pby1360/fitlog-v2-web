@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/base/Button';
-import Card from '../../components/base/Card';
 import Input from '../../components/base/Input';
 import Header from '../../components/feature/Header';
-import { getWorkoutParts, getWorkouts, saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, getWorkoutPrograms, type ProgramResponse, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
+import { getWorkoutParts, getWorkouts, saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, type WorkoutPartDto, getWorkoutPrograms, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
 import ManageWorkoutsView from './ManageWorkoutsView';
 
 interface WorkoutPart {
@@ -334,7 +333,7 @@ export default function ProgramsPage() {
     }
 
     // 데이터를 백엔드 DTO 구조로 변환 (ID 기반)
-    const partsMap = new Map<number, { workoutPartId: number; exercises: any[] }>();
+    const partsMap = new Map<number, WorkoutPartDto>();
 
     programExercises.forEach((pe) => {
       const exerciseInfo = exercises.find(ex => ex.id === pe.exerciseId);

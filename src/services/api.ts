@@ -7,7 +7,7 @@ interface WorkoutPartResponse {
   name: string;
 }
 
-interface WorkoutResponse {
+export interface WorkoutResponse {
   id: number;
   name: string;
   bodyPart: string;
@@ -164,7 +164,7 @@ export const deleteWorkout = async (id: number): Promise<void> => {
   });
 };
 
-// 프로그램 저장을 위한 타입 정의
+// 프로그램 저장을 위한 타입 정의 (BE WorkoutProgramDto.Request 와 동일한 구조)
 interface WorkoutSetDto {
   setNumber: number;
   weight?: number;
@@ -173,14 +173,14 @@ interface WorkoutSetDto {
   memo?: string;
 }
 
-interface WorkoutExerciseDto {
+export interface WorkoutExerciseDto {
   workoutId: number;
-  workoutSets: WorkoutSetDto[];
+  sets: WorkoutSetDto[];
 }
 
-interface WorkoutPartDto {
+export interface WorkoutPartDto {
   workoutPartId: number;
-  workoutExercises: WorkoutExerciseDto[];
+  exercises: WorkoutExerciseDto[];
 }
 
 export interface SaveProgramRequest {
@@ -248,7 +248,7 @@ export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
   return fetchWithAuth(`${API_BASE_URL}/workout-programs`);
 };
 
-export const getMyInfo = async (): Promise<any> => {
+export const getMyInfo = async (): Promise<MemberProfile> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
 };
 

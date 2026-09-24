@@ -3,14 +3,45 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches: [main]
+  pull_request:             # PR에서는 검사만 실행 (배포 안 함)
+    branches: [main, dev]
   workflow_dispatch:
 
 env:
   PROJECT_ID: fitlog-505315
 
 jobs:
-  deploy:
+  # ── 품질 게이트: 린트·타입 검사가 실패하면 배포하지 않는다 ──
+  check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    # 배포는 한 번에 하나씩, 시작 순서대로 실행한다
+    concurrency:
+      group: deploy-firebase-hosting
+      cancel-in-progress: false
 
     # WIF 사용에 필수. 없으면 GitHub이 OIDC 토큰을 발급하지 않는다.
     permissions:
