@@ -17,16 +17,58 @@ export interface WorkoutResponse {
   editable: boolean; // 본인이 만든 운동만 true (공용 운동은 수정/삭제 불가)
 }
 
-// HTTP 상태 코드를 함께 전달하는 API 오류 (예: 409 충돌 시 화면에서 분기)
+// API 오류. 서버 오류 응답 형식 {code, message, requestId} 를 그대로 담는다.
+// - status: HTTP 상태 (네트워크 오류·시간 초과는 0)
+// - code: 서버 오류 코드 (NOT_FOUND, CONFLICT 등) 또는 NETWORK / TIMEOUT
+// - requestId: 서버 로그와 같은 값. 사용자 문의 시 해당 요청을 찾는 데 사용
 export class ApiError extends Error {
   readonly status: number;
+  readonly code?: string;
+  readonly requestId?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string, requestId?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
+    this.requestId = requestId;
   }
 }
+
+// Cloud Run 콜드스타트를 고려한 요청 제한 시간
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const newRequestId = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+// 제한 시간과 requestId 를 붙여 요청한다. 네트워크 오류·시간 초과는 status 0 의 ApiError 로 바꾼다.
+const sendRequest = async (url: string, options: RequestInit | undefined, headers: Record<string, string>): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const requestId = newRequestId();
+  try {
+    return await fetch(url, { ...options, headers: { ...headers, 'X-Request-Id': requestId }, signal: controller.signal });
+  } catch {
+    if (controller.signal.aborted) {
+      throw new ApiError('서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.', 0, 'TIMEOUT', requestId);
+    }
+    throw new ApiError('네트워크 연결을 확인해주세요.', 0, 'NETWORK', requestId);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const toApiError = async (response: Response): Promise<ApiError> => {
+  const body = await response.json().catch(() => null);
+  return new ApiError(
+    body?.message || 'API 요청 실패',
+    response.status,
+    body?.code,
+    body?.requestId ?? response.headers.get('X-Request-Id') ?? undefined,
+  );
+};
 
 let isRedirecting = false;
 let refreshPromise: Promise<string | null> | null = null;
@@ -38,19 +80,14 @@ const requestTokenRefresh = async (): Promise<string | null> => {
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) return null;
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-  } catch {
-    throw new ApiError('네트워크 연결을 확인해주세요.', 0);
-  }
+  // 네트워크 오류·시간 초과는 sendRequest 가 ApiError(status 0)로 던진다 → 로그아웃하지 않음
+  const response = await sendRequest(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  }, { 'Content-Type': 'application/json' });
 
   if (response.status >= 500) {
-    throw new ApiError('서버에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.', response.status);
+    throw await toApiError(response);
   }
   if (!response.ok) return null;
 
@@ -83,13 +120,12 @@ export interface LoginTokens {
 
 // OAuth 콜백으로 받은 일회용 코드를 토큰으로 교환한다 (코드는 60초, 1회용)
 export const exchangeLoginCode = async (code: string): Promise<LoginTokens> => {
-  const response = await fetch(`${API_BASE_URL}/auth/token`, {
+  const response = await sendRequest(`${API_BASE_URL}/auth/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
-  });
+  }, { 'Content-Type': 'application/json' });
   if (!response.ok) {
-    throw new ApiError('로그인 코드 교환에 실패했습니다.', response.status);
+    throw await toApiError(response);
   }
   return response.json();
 };
@@ -121,13 +157,14 @@ const logout = () => {
 
 const fetchWithAuth = async (url: string, options?: RequestInit) => {
   const token = localStorage.getItem('accessToken');
-  const headers = {
+  const extraHeaders = (options?.headers ?? {}) as Record<string, string>;
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
-    ...options?.headers,
+    ...extraHeaders,
   };
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await sendRequest(url, options, headers);
 
   if (response.status === 401) {
     if (!refreshPromise) {
@@ -137,21 +174,20 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
     const newToken = await refreshPromise;
 
     if (newToken) {
-      const retryHeaders = {
+      const retryHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${newToken}`,
-        ...options?.headers,
+        ...extraHeaders,
       };
-      const retryResponse = await fetch(url, { ...options, headers: retryHeaders });
+      const retryResponse = await sendRequest(url, options, retryHeaders);
 
       if (retryResponse.status === 401) {
         logout();
-        throw new ApiError('Unauthorized', 401);
+        throw await toApiError(retryResponse);
       }
 
       if (!retryResponse.ok) {
-        const errorData = await retryResponse.json().catch(() => ({ message: 'API 요청 실패' }));
-        throw new ApiError(errorData.message || 'API 요청 실패', retryResponse.status);
+        throw await toApiError(retryResponse);
       }
 
       const text = await retryResponse.text();
@@ -159,12 +195,11 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
     }
 
     logout();
-    throw new ApiError('Unauthorized', 401);
+    throw await toApiError(response);
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'API 요청 실패' }));
-    throw new ApiError(errorData.message || 'API 요청 실패', response.status);
+    throw await toApiError(response);
   }
 
   const text = await response.text();

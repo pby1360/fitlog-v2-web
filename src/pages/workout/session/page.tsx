@@ -15,7 +15,8 @@ import {
   markExerciseStarted,
   addSetToWorkoutSessionExercise,
   addExerciseToWorkoutSession,
-  type CustomExerciseDto
+  type CustomExerciseDto,
+  ApiError,
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -81,6 +82,14 @@ export default function WorkoutSessionPage() {
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
   const restEndsAtRef = useRef<number | null>(null); // 휴식 종료 예정 시각(ms)
   const restRemainingRef = useRef(0); // 일시정지 시 보존할 남은 휴식 시간(초)
+  // 사용자 조작(저장·일시정지·종료 등) 실패를 화면에 알린다. 콘솔에만 남기면 기록이 저장되지 않은 걸 모른다.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const reportActionError = (action: string, error: unknown) => {
+    console.error(`Failed: ${action}`, error);
+    const detail = error instanceof Error ? error.message : '';
+    const requestId = error instanceof ApiError && error.requestId ? ` (요청 ID: ${error.requestId})` : '';
+    setActionError(`${action}에 실패했습니다. ${detail}${requestId}`);
+  };
   const audioRef = useRef<{ play: () => void } | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
@@ -419,7 +428,7 @@ export default function WorkoutSessionPage() {
       const updatedSession = await pauseWorkoutSession(workoutSession.id);
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to pause workout:", error);
+      reportActionError('일시정지', error);
       pauseStartMsRef.current = null;
     }
   };
@@ -460,7 +469,7 @@ export default function WorkoutSessionPage() {
       clearPauseSnapshot();
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to resume workout:", error);
+      reportActionError('운동 재개', error);
     }
   };
 
@@ -471,7 +480,7 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
       setShowCompleteModal(true);
     } catch (error) {
-      console.error("Failed to complete workout:", error);
+      reportActionError('운동 완료', error);
     }
   };
 
@@ -481,7 +490,7 @@ export default function WorkoutSessionPage() {
       await endWorkoutSession(workoutSession.id, 'CANCELLED');
       navigate('/workout');
     } catch (error) {
-      console.error("Failed to stop workout:", error);
+      reportActionError('운동 종료', error);
     } finally {
       setShowStopModal(false);
     }
@@ -513,7 +522,7 @@ export default function WorkoutSessionPage() {
         setShowCompleteModal(true);
       }
     } catch (error) {
-      console.error("Failed to complete set:", error);
+      reportActionError('세트 기록 저장', error);
     } finally {
       setIsCompletingSet(false); // API 호출 완료 시 로딩 상태 해제
     }
@@ -541,7 +550,7 @@ export default function WorkoutSessionPage() {
       );
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to add set:", error);
+      reportActionError('세트 추가', error);
     } finally {
       setIsAddingSet(false);
     }
@@ -590,8 +599,7 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
       closeAddExerciseModal();
     } catch (error) {
-      console.error('Failed to add exercise:', error);
-      alert('운동을 추가하는 중 오류가 발생했습니다.');
+      reportActionError('운동 추가', error);
     } finally {
       setIsAddingExercise(false);
     }
@@ -613,7 +621,7 @@ export default function WorkoutSessionPage() {
       stopRest();
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error('Failed to skip exercise:', error);
+      reportActionError('운동 건너뛰기', error);
     }
   };
 
@@ -767,6 +775,15 @@ export default function WorkoutSessionPage() {
             </div>
           </div>
         </div>
+
+        {actionError && (
+          <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="shrink-0 font-medium" aria-label="오류 닫기">
+              <i className="ri-close-line" />
+            </button>
+          </div>
+        )}
 
         {/* 운동 정보 대시보드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
