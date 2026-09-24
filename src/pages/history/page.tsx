@@ -4,6 +4,10 @@ import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
 import { getWorkoutLogs, getWorkoutLog, type WorkoutLogResponse, type WorkoutLogPage } from '../../services/api';
+import { kstDateDaysAgo, monthRange } from '../../utils/date';
+
+// 한 달 기록을 한 번에 가져오기 위한 페이지 크기
+const CALENDAR_PAGE_SIZE = 200;
 
 type WorkoutRecord = WorkoutLogResponse;
 
@@ -19,6 +23,7 @@ export default function HistoryPage() {
   const [selectedRecord, setSelectedRecord] = useState<WorkoutRecord | null>(null);
   const [view, setView] = useState<'list' | 'calendar' | 'detail'>('list');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarError, setCalendarError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'1w' | '1m' | '3m' | '6m' | 'all'>('1m');
@@ -35,12 +40,9 @@ export default function HistoryPage() {
 
   const getDateRange = (period: typeof selectedPeriod) => {
     if (period === 'all') return {};
-    const end = new Date();
-    const start = new Date();
     const days = PERIOD_OPTIONS.find(o => o.value === period)!.days!;
-    start.setDate(start.getDate() - days);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    return { startDate: fmt(start), endDate: fmt(end) };
+    // 한국 날짜 기준 (서버도 KST 날짜 경계로 해석한다)
+    return { startDate: kstDateDaysAgo(days), endDate: kstDateDaysAgo(0) };
   };
 
   const fetchListPage = async (page: number, period = selectedPeriod) => {
@@ -63,13 +65,16 @@ export default function HistoryPage() {
     }
   };
 
-  const fetchCalendarRecords = async () => {
+  // 캘린더는 보고 있는 달의 기록만 기간 조회한다 (오래된 달도 표시되도록)
+  const fetchCalendarRecords = async (month: Date = currentDate) => {
+    setCalendarError(null);
     try {
-      // 캘린더는 최근 365개까지 로드
-      const result: WorkoutLogPage = await getWorkoutLogs(0, 365);
+      const { startDate, endDate } = monthRange(month.getFullYear(), month.getMonth() + 1);
+      const result: WorkoutLogPage = await getWorkoutLogs(0, CALENDAR_PAGE_SIZE, startDate, endDate);
       setCalendarRecords(result.logs);
     } catch {
-      // 캘린더 로딩 실패는 조용히 처리
+      // 실패를 빈 달(운동 안 함)과 구분해 보여준다
+      setCalendarError('이 달의 운동 기록을 불러오지 못했습니다.');
     }
   };
 
@@ -163,15 +168,11 @@ export default function HistoryPage() {
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      if (direction === 'prev') {
-        newDate.setMonth(newDate.getMonth() - 1);
-      } else {
-        newDate.setMonth(newDate.getMonth() + 1);
-      }
-      return newDate;
-    });
+    // 일자를 1일로 고정해 31일에서 이동할 때 짧은 달을 건너뛰지 않게 한다
+    const offset = direction === 'prev' ? -1 : 1;
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
+    setCurrentDate(newDate);
+    fetchCalendarRecords(newDate);
   };
 
   if (loading && view !== 'detail') {
@@ -274,6 +275,13 @@ export default function HistoryPage() {
                 </Button>
               </div>
             </div>
+
+            {calendarError && (
+              <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+                <span>{calendarError}</span>
+                <button onClick={() => fetchCalendarRecords()} className="font-medium underline">다시 시도</button>
+              </div>
+            )}
 
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 gap-1 mb-2">

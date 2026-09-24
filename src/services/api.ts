@@ -1,4 +1,5 @@
 import { redirectToHome } from '../utils/navigationService';
+import { toKstDateString, toKstTimeString } from '../utils/date';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 API 기본 URL
 
@@ -577,13 +578,10 @@ interface ServerSessionDetail {
     exercises: ServerExerciseResponse[];
 }
 
-const parseIsoDate = (iso: string): string => (iso ? iso.substring(0, 10) : '');
+// 서버 시각(ISO, 오프셋 포함)을 한국 날짜/시간으로 변환한다
+const parseIsoDate = (iso: string): string => (iso ? toKstDateString(new Date(iso)) : '');
 
-const parseIsoTime = (iso: string): string => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-};
+const parseIsoTime = (iso: string): string => (iso ? toKstTimeString(new Date(iso)) : '');
 
 const mapSummaryToLog = (s: ServerLogSummary): WorkoutLogResponse => ({
     id: s.id,
