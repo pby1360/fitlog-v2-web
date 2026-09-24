@@ -14,6 +14,17 @@ export interface WorkoutResponse {
   bodyPartId: number;
 }
 
+// HTTP 상태 코드를 함께 전달하는 API 오류 (예: 409 충돌 시 화면에서 분기)
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 let isRedirecting = false;
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -91,12 +102,12 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
 
       if (retryResponse.status === 401) {
         logout();
-        throw new Error('Unauthorized');
+        throw new ApiError('Unauthorized', 401);
       }
 
       if (!retryResponse.ok) {
         const errorData = await retryResponse.json().catch(() => ({ message: 'API 요청 실패' }));
-        throw new Error(errorData.message || 'API 요청 실패');
+        throw new ApiError(errorData.message || 'API 요청 실패', retryResponse.status);
       }
 
       const text = await retryResponse.text();
@@ -104,12 +115,12 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
     }
 
     logout();
-    throw new Error('Unauthorized');
+    throw new ApiError('Unauthorized', 401);
   }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ message: 'API 요청 실패' }));
-    throw new Error(errorData.message || 'API 요청 실패');
+    throw new ApiError(errorData.message || 'API 요청 실패', response.status);
   }
 
   const text = await response.text();
@@ -442,7 +453,7 @@ export const endWorkoutSession = async (
 ): Promise<WorkoutSessionResponse> => {
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/end`, {
         method: 'PATCH',
-        body: JSON.stringify({ endTime: new Date().toISOString(), status }),
+        body: JSON.stringify({ status }), // 종료 시각은 서버가 기록한다
     });
 };
 
@@ -519,6 +530,7 @@ interface ServerSessionDetail {
     workoutProgramName: string;
     startTime: string;
     endTime: string;
+    durationSeconds?: number | null; // 서버가 계산한 실제 운동 시간 (일시정지 제외)
     exercises: ServerExerciseResponse[];
 }
 
@@ -548,9 +560,10 @@ const mapSummaryToLog = (s: ServerLogSummary): WorkoutLogResponse => ({
 const mapDetailToLog = (r: ServerSessionDetail): WorkoutLogResponse => {
     const exercises = r.exercises ?? [];
     const allSets = exercises.flatMap(e => e.sets ?? []);
-    const totalSeconds = r.startTime && r.endTime
+    // 서버 계산값(일시정지 제외)을 우선 사용하고, 구버전 응답일 때만 시작~종료 차이로 대체한다
+    const totalSeconds = r.durationSeconds ?? (r.startTime && r.endTime
         ? Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 1000)
-        : 0;
+        : 0);
     return {
         id: r.id,
         programName: r.workoutProgramName ?? '',

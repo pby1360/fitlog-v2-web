@@ -79,6 +79,8 @@ export default function WorkoutSessionPage() {
   const navigate = useNavigate();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const restEndsAtRef = useRef<number | null>(null); // 휴식 종료 예정 시각(ms)
+  const restRemainingRef = useRef(0); // 일시정지 시 보존할 남은 휴식 시간(초)
   const audioRef = useRef<{ play: () => void } | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
@@ -350,29 +352,62 @@ export default function WorkoutSessionPage() {
   }, [soundEnabled]);
 
   // 휴식 시간 타이머
+  // 매 tick 마다 1초씩 빼는 대신 종료 시각(deadline)과의 차이로 계산한다.
+  // 백그라운드 탭에서 interval 이 지연돼도 복귀 시 정확한 남은 시간을 보여준다.
+  // 운동이 일시정지되면 남은 시간을 고정하고, 재개하면 그 시점부터 다시 센다.
+  const isSessionPaused = workoutSession?.status === 'PAUSED';
+
+  const startRest = (seconds: number) => {
+    restEndsAtRef.current = Date.now() + seconds * 1000;
+    restRemainingRef.current = seconds;
+    setRestTimeLeft(seconds);
+    setIsResting(seconds > 0);
+  };
+
+  const stopRest = () => {
+    restEndsAtRef.current = null;
+    restRemainingRef.current = 0;
+    setIsResting(false);
+    setRestTimeLeft(0);
+  };
+
   useEffect(() => {
-    if (isResting && restTimeLeft > 0) {
-      restTimerRef.current = setInterval(() => {
-        setRestTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsResting(false);
-            if (soundEnabled && audioRef.current) {
-              audioRef.current.play();
-              setTimeout(() => audioRef.current?.play(), 300);
-              setTimeout(() => audioRef.current?.play(), 600);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (restTimerRef.current) clearInterval(restTimerRef.current);
+    if (!isResting) return;
+
+    if (isSessionPaused) {
+      // 일시정지: 현재 남은 시간을 보존하고 deadline 을 해제한다
+      restEndsAtRef.current = null;
+      return;
     }
+    if (restEndsAtRef.current === null) {
+      // 일시정지 후 재개: 보존한 남은 시간으로 deadline 을 다시 잡는다
+      restEndsAtRef.current = Date.now() + restRemainingRef.current * 1000;
+    }
+
+    const tick = () => {
+      if (restEndsAtRef.current === null) return;
+      const remaining = Math.max(0, Math.ceil((restEndsAtRef.current - Date.now()) / 1000));
+      restRemainingRef.current = remaining;
+      setRestTimeLeft(remaining);
+      if (remaining === 0) {
+        restEndsAtRef.current = null;
+        setIsResting(false);
+        if (soundEnabled && audioRef.current) {
+          audioRef.current.play();
+          setTimeout(() => audioRef.current?.play(), 300);
+          setTimeout(() => audioRef.current?.play(), 600);
+        }
+      }
+    };
+
+    tick();
+    restTimerRef.current = setInterval(tick, 500);
+    document.addEventListener('visibilitychange', tick);
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
+      document.removeEventListener('visibilitychange', tick);
     };
-  }, [isResting, restTimeLeft, soundEnabled]);
+  }, [isResting, isSessionPaused, soundEnabled]);
 
   // API 연동 핸들러
   const pauseWorkout = async () => {
@@ -473,8 +508,7 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
 
       if (updatedSession.status !== 'COMPLETED') {
-        setRestTimeLeft(currentSet.restTime);
-        setIsResting(true);
+        startRest(currentSet.restTime);
       } else {
         setShowCompleteModal(true);
       }
@@ -576,8 +610,7 @@ export default function WorkoutSessionPage() {
         currentExercise.id,
         true
       );
-      setIsResting(false);
-      setRestTimeLeft(0);
+      stopRest();
       updateSessionState(updatedSession);
     } catch (error) {
       console.error('Failed to skip exercise:', error);
@@ -790,8 +823,7 @@ export default function WorkoutSessionPage() {
               <div className="flex gap-2 justify-center">
                 <Button
                   onClick={() => {
-                    setIsResting(false);
-                    setRestTimeLeft(0);
+                    stopRest();
                   }}
                   variant="outline"
                   className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-500/30 dark:text-orange-400 dark:hover:bg-orange-500/10"

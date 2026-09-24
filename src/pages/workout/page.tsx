@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Header from '../../components/feature/Header';
-import { getWorkoutPrograms, type ProgramResponse, startWorkoutSession, getLatestWorkoutSession, getWorkouts, type WorkoutResponse, type CustomExerciseDto } from '../../services/api';
+import { getWorkoutPrograms, type ProgramResponse, startWorkoutSession, getLatestWorkoutSession, getWorkouts, type WorkoutResponse, type CustomExerciseDto, ApiError } from '../../services/api';
 
 interface ExerciseSet {
   id: string;
@@ -130,6 +130,11 @@ export default function WorkoutPage() {
       await startWorkoutSession(selectedProgram.id, customExercises);
       navigate('/workout/session');
     } catch (error) {
+      // 이미 진행 중인 운동이 있으면(다른 탭/기기에서 시작) 그 운동으로 이동한다
+      if (error instanceof ApiError && error.status === 409) {
+        navigate('/workout/session');
+        return;
+      }
       alert("운동을 시작하는 중 오류가 발생했습니다.");
       console.error("Failed to start workout session:", error);
     } finally {
