@@ -2,17 +2,17 @@
 import type { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 
-const HomePage = lazy(() => import('../pages/home/page'));
-const DashboardPage = lazy(() => import('../pages/dashboard/page'));
-const ProgramsPage = lazy(() => import('../pages/programs/page'));
-const WorkoutPage = lazy(() => import('../pages/workout/page'));
-const WorkoutSessionPage = lazy(() => import('../pages/workout/session/page'));
-const HistoryPage = lazy(() => import('../pages/history/page'));
-const ProfilePage = lazy(() => import('../pages/profile/page'));
-const NotFoundPage = lazy(() => import('../pages/NotFound'));
-const AuthCallbackPage = lazy(() => import('../pages/auth/callback/page'));
-const PrivacyPolicyPage = lazy(() => import('../pages/legal/PrivacyPolicyPage'));
-const TermsPage = lazy(() => import('../pages/legal/TermsPage'));
+const HomePage = lazy(() => import('@/pages/home/page'));
+const DashboardPage = lazy(() => import('@/pages/dashboard/page'));
+const ProgramsPage = lazy(() => import('@/pages/programs/page'));
+const WorkoutPage = lazy(() => import('@/pages/workout/page'));
+const WorkoutSessionPage = lazy(() => import('@/pages/workout/session/page'));
+const HistoryPage = lazy(() => import('@/pages/history/page'));
+const ProfilePage = lazy(() => import('@/pages/profile/page'));
+const NotFoundPage = lazy(() => import('@/pages/NotFound'));
+const AuthCallbackPage = lazy(() => import('@/pages/auth/callback/page'));
+const PrivacyPolicyPage = lazy(() => import('@/pages/legal/PrivacyPolicyPage'));
+const TermsPage = lazy(() => import('@/pages/legal/TermsPage'));
 
 const routes: RouteObject[] = [
   {

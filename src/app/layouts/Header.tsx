@@ -1,10 +1,10 @@
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
-import { revokeRefreshToken } from '../../services/api';
+import { useTheme } from '@/app/providers/useTheme';
+import { revokeRefreshToken } from '@/features/auth';
 
-export default function Header() {
+export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

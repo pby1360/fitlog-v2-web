@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Button from '../../components/base/Button';
-import Input from '../../components/base/Input';
-import Header from '../../components/feature/Header';
-import { getWorkoutParts, getWorkouts, saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, type WorkoutPartDto, getWorkoutPrograms, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
+import { Header } from '@/app/layouts/Header';
+import { getWorkoutParts, getWorkouts, addWorkoutPart, deleteWorkoutPart, addWorkout, updateWorkout, deleteWorkout } from '@/features/exercises';
+import { saveWorkoutProgram, updateWorkoutProgram, deleteWorkoutProgram, type SaveProgramRequest, type WorkoutPartDto, getWorkoutPrograms } from '@/features/programs';
 import ManageWorkoutsView from './ManageWorkoutsView';
 
 interface WorkoutPart {

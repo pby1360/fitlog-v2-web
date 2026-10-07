@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from 'react';
-import Header from '../../components/feature/Header';
-import Input from '../../components/base/Input';
+import { Header } from '@/app/layouts/Header';
+import { Input } from '@/shared/ui/Input';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMyProfile, updateMyProfile, deleteMyAccount, type MemberProfile } from '../../services/api';
+import { getMyProfile, updateMyProfile, deleteMyAccount, type MemberProfile } from '@/features/profile';
 
 interface EditData {
   nickname: string;

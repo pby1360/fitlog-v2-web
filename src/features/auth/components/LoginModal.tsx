@@ -7,7 +7,7 @@ interface LoginModalProps {
   isSignUp?: boolean;
 }
 
-export default function LoginModal({ isOpen, onClose, isSignUp = false }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, isSignUp = false }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const BASE_AUTH_URL = import.meta.env.VITE_API_BASE_URL + '/oauth2/authorization';

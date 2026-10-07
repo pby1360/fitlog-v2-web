@@ -1,9 +1,9 @@
 import { BrowserRouter, useNavigate } from 'react-router-dom';
-import { AppRoutes } from './router';
+import { AppRoutes } from './router/AppRoutes';
 import { useEffect } from 'react';
-import { getMyInfo } from './services/api';
-import { setNavigator } from './utils/navigationService';
-import { ThemeProvider } from './contexts/ThemeContext';
+import { getMyProfile } from '@/features/profile';
+import { setNavigator } from '@/shared/lib/navigation';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 const AppNavigator = () => {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ function App() {
   // 첫 화면 렌더링을 이 요청(콜드스타트 시 수 초)에 묶지 않는다. 각 페이지도 401을 스스로 처리한다.
   useEffect(() => {
     if (localStorage.getItem('accessToken')) {
-      getMyInfo().catch((error) => {
+      getMyProfile().catch((error) => {
         console.error('Token validation failed:', error);
       });
     }

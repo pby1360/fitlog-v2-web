@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import Button from '../../components/base/Button';
-import Header from '../../components/feature/Header';
-import { getWorkoutPrograms, type ProgramResponse, startWorkoutSession, getLatestWorkoutSession, getWorkouts, type WorkoutResponse, type CustomExerciseDto, ApiError } from '../../services/api';
+import { Button } from '@/shared/ui/Button';
+import { Header } from '@/app/layouts/Header';
+import { getWorkoutPrograms, type ProgramResponse } from '@/features/programs';
+import { startWorkoutSession, getLatestWorkoutSession, type CustomExerciseDto } from '@/features/session';
+import { getWorkouts, type WorkoutResponse } from '@/features/exercises';
+import { ApiError } from '@/shared/api/client';
 
 interface ExerciseSet {
   id: string;

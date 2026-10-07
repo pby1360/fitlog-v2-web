@@ -7,7 +7,7 @@ interface CardProps {
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export default function Card({ children, className = '', padding = 'md' }: CardProps) {
+export function Card({ children, className = '', padding = 'md' }: CardProps) {
   const paddingClasses = {
     none: '',
     sm: 'p-4',

@@ -1,14 +1,10 @@
 
-import { kstDateDaysAgo } from '../../utils/date';
+import { kstDateDaysAgo } from '@/shared/lib/date';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Header from '../../components/feature/Header';
-import {
-  getDashboardStats,
-  getLatestWorkoutSession,
-  type DashboardStatsResponse,
-  type WorkoutSessionResponse,
-} from '../../services/api';
+import { Header } from '@/app/layouts/Header';
+import { getDashboardStats, type DashboardStatsResponse } from '@/features/dashboard';
+import { getLatestWorkoutSession, type WorkoutSessionResponse } from '@/features/session';
 
 const DAY_LABELS: Record<string, string> = {
   MON: '월', TUE: '화', WED: '수',

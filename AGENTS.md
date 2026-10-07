@@ -17,7 +17,7 @@
 | UI | React 19, Tailwind CSS 3 (`darkMode: 'class'`), Remix Icon (`index.html` CDN, `ri-*` 클래스) |
 | 라우팅 | React Router v7 — `useRoutes` + `lazy()` (`src/router/config.tsx`) |
 | 언어 | TypeScript 5.8 (`strict`, `noUnusedLocals`, `verbatimModuleSyntax`) |
-| 상태·데이터 | 라이브러리 없음. 페이지별 `useState`/`useEffect` + `src/services/api.ts` |
+| 상태·데이터 | 라이브러리 없음. 페이지별 `useState`/`useEffect` + `features/*/api.ts` |
 | 테스트 | 없음 |
 
 > **Next.js가 아니다.** `pages/**/page.tsx` 는 파일 이름 관례일 뿐이고, 라우트는 `src/router/config.tsx` 에 직접 등록한다. `'use client'`, `layout.tsx` 같은 Next 개념은 쓰지 않는다.
@@ -44,12 +44,28 @@ npm run preview    # 빌드 결과 미리보기
 
 ```
 src/
-  main.tsx, App.tsx          진입점. ThemeProvider + BrowserRouter, 토큰 백그라운드 검증
+  main.tsx                   Vite 진입점 (index.html 이 참조)
   index.css                  Tailwind 지시문 + 전역 스타일
-  router/
-    config.tsx               라우트 목록 (lazy 페이지)
-    index.ts                 AppRoutes (useRoutes)
-  pages/                     라우트별 화면. 대부분 한 파일에 UI·상태·API 호출이 함께 있음
+  app/
+    App.tsx                  ThemeProvider + BrowserRouter, 토큰 백그라운드 검증
+    router/routes.tsx        라우트 목록 (lazy 페이지)
+    router/AppRoutes.ts      useRoutes
+    providers/               ThemeContext · ThemeProvider · useTheme (다크/라이트)
+    layouts/Header.tsx       상단 내비게이션 (아직 각 페이지가 직접 렌더링)
+  features/                  도메인별 api.ts · types.ts · index.ts
+    auth/                    로그인 코드 교환·로그아웃, LoginModal
+    exercises/               부위·운동 종목 CRUD
+    programs/                프로그램 CRUD
+    session/                 운동 세션
+    history/                 운동 기록 (lib/mapLog.ts: 서버 DTO → 화면 모델)
+    dashboard/               대시보드 통계
+    profile/                 회원 정보·탈퇴
+  shared/
+    api/client.ts            ApiError, sendRequest, fetchWithAuth (토큰 갱신·로그아웃)
+    ui/                      Button, Card, Input
+    lib/date.ts              KST 날짜 유틸
+    lib/navigation.ts        컴포넌트 밖에서 navigate (401 → 홈 이동)
+  pages/                     라우트별 화면. 대부분 한 파일에 UI·상태가 함께 있음 (분해 예정)
     home/                    랜딩 (비로그인, 항상 다크)
     auth/callback/           OAuth 교환 코드 → 토큰 저장
     dashboard/               통계 요약
@@ -61,14 +77,6 @@ src/
     profile/                 프로필 조회·수정·탈퇴
     legal/                   개인정보처리방침·이용약관 (+ LegalLayout)
     NotFound.tsx
-  components/
-    base/                    Button, Card, Input
-    feature/                 Header, LoginModal
-  contexts/ThemeContext.tsx  다크/라이트 테마
-  services/api.ts            API 클라이언트 + 전 도메인 엔드포인트 + DTO 타입
-  utils/
-    date.ts                  KST 날짜 유틸
-    navigationService.ts     컴포넌트 밖에서 navigate (401 → 홈 이동)
   i18n/                      설정만 있고 사용하지 않음
 ```
 
@@ -98,7 +106,7 @@ src/
 
 마이그레이션 진행 상태 (완료 시 체크하고 4.1 을 갱신):
 
-- [ ] 1. 기반 정리 — `app/`·`shared/` 생성, `api.ts` 를 `shared/api/client.ts` + `features/*/api.ts` 로 분리
+- [x] 1. 기반 정리 — `app/`·`shared/` 생성, `api.ts` 를 `shared/api/client.ts` + `features/*/api.ts` 로 분리
 - [ ] 2. 공용 UI 키트 + `AppLayout` 레이아웃 라우트
 - [ ] 3. `exercises` feature — 운동 폼 모달·운동 추가 피커·순서 변경 공통화
 - [ ] 4. 큰 페이지 분해 — session → programs → history → workout → dashboard → profile
@@ -139,28 +147,28 @@ src/
   - 주요 버튼은 브랜드 그라디언트 `bg-gradient-to-r from-indigo-500 to-violet-600`.
   - 아이콘은 Remix Icon `<i className="ri-..."/>`. `lucide-react` 는 쓰지 않는다.
 - **문구**: UI 텍스트·주석·커밋 메시지는 한국어. i18n은 쓰지 않으므로 문자열을 직접 쓴다.
-- **날짜·시간**: 서버 기준은 KST. `utils/date.ts` (`toKstDateString`, `toKstTimeString`, `kstDateDaysAgo`, `monthRange`) 를 쓰고 `new Date().toISOString().slice(0,10)` 같은 UTC 기준 계산은 하지 않는다.
+- **날짜·시간**: 서버 기준은 KST. `@/shared/lib/date` (`toKstDateString`, `toKstTimeString`, `kstDateDaysAgo`, `monthRange`) 를 쓰고 `new Date().toISOString().slice(0,10)` 같은 UTC 기준 계산은 하지 않는다.
 - **API 호출**
-  - 반드시 `services/api.ts` 의 함수를 거친다 (`fetchWithAuth`: 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
+  - 엔드포인트 함수는 각 feature의 `api.ts` 에 두고, 반드시 `@/shared/api/client` 의 `fetchWithAuth` 를 거친다 ( 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
   - 오류는 `ApiError` (`status`, `code`, `requestId`). 사용자에게 보여줄 때 `requestId` 를 함께 노출한다.
   - 새 코드에서는 `alert()` 대신 화면 내 에러 표시(배너)를 쓴다.
 - **localStorage 키** (임의로 키를 추가하지 말고 여기에 기록)
 
   | 키 | 위치 | 용도 |
   |---|---|---|
-  | `accessToken`, `refreshToken` | `services/api.ts`, `auth/callback` | 인증 토큰 |
-  | `imageUrl`, `provider` | `auth/callback`, `Header` | 프로필 이미지, 로그인 제공자 |
-  | `theme` | `ThemeContext` | 다크/라이트 |
-  | `exercise_start_time`, `pause_snapshot` | `workout/session` | 새로고침 후 타이머 복원 |
+  | `accessToken`, `refreshToken` | `shared/api/client.ts`, `features/auth/api.ts`, `pages/auth/callback` | 인증 토큰 |
+  | `imageUrl`, `provider` | `pages/auth/callback`, `app/layouts/Header` | 프로필 이미지, 로그인 제공자 |
+  | `theme` | `app/providers/ThemeProvider` | 다크/라이트 |
+  | `exercise_start_time`, `pause_snapshot` | `pages/workout/session` | 새로고침 후 타이머 복원 |
 
 ## 8. 주의 사항·알려진 부채
 
 - `i18next`·`react-i18next`·`recharts`·`lucide-react` 는 설치돼 있지만 사용하지 않는다 (`main.tsx` 가 `./i18n` 만 import).
-- 컴포넌트 밖 navigate 수단이 두 개다: `utils/navigationService.ts` (사용 중), `router/index.ts` 의 `window.REACT_APP_NAVIGATE`·`navigatePromise` (사실상 미사용).
-- `getMyInfo` 와 `getMyProfile` 은 같은 `/members/me` 를 호출한다.
+- 컴포넌트 밖 navigate 수단이 두 개다: `shared/lib/navigation.ts` (사용 중), `app/router/AppRoutes.ts` 의 `window.REACT_APP_NAVIGATE`·`navigatePromise` (사실상 미사용).
 - `history` 의 `formatDate` 는 로컬 시간대 기준이라 대시보드(KST 기준)와 결과가 다를 수 있다.
 - `formatTime` 이 페이지마다 출력 형식이 다르다 (`N시간 N분` / `H:MM:SS` / `Nh Nm`). 통일할 때 화면 출력은 유지한다.
-- `components/base` 의 `Button`·`Card`·`Input` 과 `LoginModal` 은 다크모드 스타일이 없다. `Button` variant는 브랜드 색과 달라 대부분 `className` 으로 덮어쓴다.
+- `shared/ui` 의 `Button`·`Card`·`Input` 과 `LoginModal` 은 다크모드 스타일이 없다. `Button` variant는 브랜드 색과 달라 대부분 `className` 으로 덮어쓴다.
+- Windows 로컬에서 `out/` 가 남아 있으면 `vite build` 가 메시지 없이 비정상 종료(0xC0000409)할 수 있다. `out/` 를 지우고 다시 빌드한다.
 - 라우트 가드가 없다. 비로그인 접근은 API 401 → 홈 리다이렉트로 처리된다.
 - 세션 화면의 세트 입력값은 `document.getElementById` 로 읽는다 (리팩터링 시 controlled state로 전환 예정).
 

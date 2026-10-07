@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import Button from '../../components/base/Button';
-import Card from '../../components/base/Card';
-import Header from '../../components/feature/Header';
-import { getWorkoutLogs, getWorkoutLog, type WorkoutLogResponse, type WorkoutLogPage } from '../../services/api';
-import { kstDateDaysAgo, monthRange } from '../../utils/date';
+import { Button } from '@/shared/ui/Button';
+import { Card } from '@/shared/ui/Card';
+import { Header } from '@/app/layouts/Header';
+import { getWorkoutLogs, getWorkoutLog, type WorkoutLogResponse, type WorkoutLogPage } from '@/features/history';
+import { kstDateDaysAgo, monthRange } from '@/shared/lib/date';
 
 // 한 달 기록을 한 번에 가져오기 위한 페이지 크기
 const CALENDAR_PAGE_SIZE = 200;

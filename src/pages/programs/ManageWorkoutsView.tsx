@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../../components/base/Button';
-import Input from '../../components/base/Input';
-import Header from '../../components/feature/Header';
-import { getWorkouts, getWorkoutParts, addWorkout, updateWorkout, deleteWorkout } from '../../services/api';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
+import { Header } from '@/app/layouts/Header';
+import { getWorkouts, getWorkoutParts, addWorkout, updateWorkout, deleteWorkout } from '@/features/exercises';
 
 interface WorkoutPart {
   id: number;

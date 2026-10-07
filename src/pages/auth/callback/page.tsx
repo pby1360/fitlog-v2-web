@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { exchangeLoginCode } from '../../../services/api';
+import { exchangeLoginCode } from '@/features/auth';
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();

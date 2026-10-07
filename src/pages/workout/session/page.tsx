@@ -1,24 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Button from '@/components/base/Button';
-import Header from '@/components/feature/Header';
-import {
-  getLatestWorkoutSession,
-  type WorkoutSessionResponse,
-  getWorkouts,
-  type WorkoutResponse,
-  completeWorkoutSessionSet,
-  pauseWorkoutSession,
-  resumeWorkoutSession,
-  endWorkoutSession,
-  skipWorkoutSessionExercise,
-  markExerciseStarted,
-  addSetToWorkoutSessionExercise,
-  addExerciseToWorkoutSession,
-  reorderWorkoutSessionExercises,
-  type CustomExerciseDto,
-  ApiError,
-} from '@/services/api';
+import { Button } from '@/shared/ui/Button';
+import { Header } from '@/app/layouts/Header';
+import { getLatestWorkoutSession, type WorkoutSessionResponse, completeWorkoutSessionSet, pauseWorkoutSession, resumeWorkoutSession, endWorkoutSession, skipWorkoutSessionExercise, markExerciseStarted, addSetToWorkoutSessionExercise, addExerciseToWorkoutSession, reorderWorkoutSessionExercises, type CustomExerciseDto } from '@/features/session';
+import { getWorkouts, type WorkoutResponse } from '@/features/exercises';
+import { ApiError } from '@/shared/api/client';
 
 // UI에 맞는 상태 인터페이스 정의
 interface ExerciseSetDetail {
