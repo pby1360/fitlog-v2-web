@@ -15,6 +15,7 @@ import {
   markExerciseStarted,
   addSetToWorkoutSessionExercise,
   addExerciseToWorkoutSession,
+  reorderWorkoutSessionExercises,
   type CustomExerciseDto,
   ApiError,
 } from '@/services/api';
@@ -74,6 +75,7 @@ export default function WorkoutSessionPage() {
   const [pendingWorkout, setPendingWorkout] = useState<WorkoutResponse | null>(null);
   const [pendingSets, setPendingSets] = useState<{ reps: number; weight: number; restTime: number }[]>([]);
   const [isAddingExercise, setIsAddingExercise] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
 
   const [elapsedExerciseTime, setElapsedExerciseTime] = useState(0);
 
@@ -562,8 +564,9 @@ export default function WorkoutSessionPage() {
     setPendingSets([{ reps: 10, weight: 0, restTime: 60 }]);
   };
 
+  // 두 번째 세트부터는 직전 세트 값을 그대로 가져온다
   const addPendingSet = () => {
-    setPendingSets(prev => [...prev, { reps: 10, weight: 0, restTime: 60 }]);
+    setPendingSets(prev => [...prev, prev.length > 0 ? { ...prev[prev.length - 1] } : { reps: 10, weight: 0, restTime: 60 }]);
   };
 
   const removePendingSet = (index: number) => {
@@ -602,6 +605,39 @@ export default function WorkoutSessionPage() {
       reportActionError('운동 추가', error);
     } finally {
       setIsAddingExercise(false);
+    }
+  };
+
+  // 남은 운동: 현재 운동·완료·건너뛴 운동을 제외한 것. 현재 운동이 첫 미완료 운동이므로 모두 현재 운동 뒤에 있다.
+  const getRemainingIndexes = (session: WorkoutSession) =>
+    session.exercises
+      .map((ex, i) => ({ ex, i }))
+      .filter(({ ex, i }) => i !== session.currentExerciseIndex && !ex.completed && !ex.skipped)
+      .map(({ i }) => i);
+
+  // 남은 운동끼리만 자리를 바꾼다. 현재 운동의 위치는 그대로라 진행 중인 운동·타이머에 영향이 없다.
+  const moveRemainingExercise = async (exerciseIndex: number, direction: -1 | 1) => {
+    if (!workoutSession || isReordering) return;
+    const remaining = getRemainingIndexes(workoutSession);
+    const pos = remaining.indexOf(exerciseIndex);
+    const targetPos = pos + direction;
+    if (pos === -1 || targetPos < 0 || targetPos >= remaining.length) return;
+
+    const reordered = [...workoutSession.exercises];
+    const targetIndex = remaining[targetPos];
+    [reordered[exerciseIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[exerciseIndex]];
+
+    setIsReordering(true);
+    try {
+      const updatedSession = await reorderWorkoutSessionExercises(
+        workoutSession.id,
+        reordered.map((ex, i) => ({ workoutSessionExerciseId: ex.id, order: i + 1 }))
+      );
+      updateSessionState(updatedSession);
+    } catch (error) {
+      reportActionError('운동 순서 변경', error);
+    } finally {
+      setIsReordering(false);
     }
   };
 
@@ -681,6 +717,8 @@ export default function WorkoutSessionPage() {
   const currentBodyPart = currentExercise ? (currentExercise.workoutPartName || getExerciseProperty(currentExercise.exerciseId, 'bodyPart')) : '';
   const currentExerciseName = currentExercise ? (currentExercise.workoutName || getExerciseProperty(currentExercise.exerciseId, 'name')) : '';
   const progress = getWorkoutProgress();
+  const canReorder = workoutSession.status === 'IN_PROGRESS' || workoutSession.status === 'PAUSED';
+  const remainingIndexes = getRemainingIndexes(workoutSession);
 
   // 운동 추가 모달용: 카탈로그 필터링 및 부위별 그룹핑
   const filteredWorkouts = allExercises.filter(w =>
@@ -986,7 +1024,14 @@ export default function WorkoutSessionPage() {
 
         {/* 운동 목록 */}
         <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/8 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 목록</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">운동 목록</h3>
+            {canReorder && remainingIndexes.length > 1 && (
+              <span className="text-xs text-gray-400 dark:text-gray-600">
+                <i className="ri-arrow-up-down-line mr-1"></i>남은 운동은 순서를 바꿀 수 있어요
+              </span>
+            )}
+          </div>
           <div className="space-y-3">
             {[...workoutSession.exercises]
               .map((ex, i) => ({ ex, i }))
@@ -1002,7 +1047,9 @@ export default function WorkoutSessionPage() {
                 if (pa !== pb) return pa - pb;
                 return a.i - b.i; // 같은 그룹 내에서는 원래 순서 유지
               })
-              .map(({ ex: exercise, i: exerciseIndex }) => (
+              .map(({ ex: exercise, i: exerciseIndex }) => {
+              const remainingPos = canReorder ? remainingIndexes.indexOf(exerciseIndex) : -1;
+              return (
               <div
                 key={exercise.id}
                 className={`p-4 rounded-lg border-2 transition-colors ${
@@ -1015,9 +1062,31 @@ export default function WorkoutSessionPage() {
                         : 'border-gray-100 dark:border-white/5 bg-white dark:bg-white/[0.02]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{exercise.workoutName || getExerciseProperty(exercise.exerciseId, 'name')}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="font-medium text-gray-900 dark:text-white min-w-0 truncate">{exercise.workoutName || getExerciseProperty(exercise.exerciseId, 'name')}</div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
+                      {remainingPos !== -1 && remainingIndexes.length > 1 && (
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => moveRemainingExercise(exerciseIndex, -1)}
+                            disabled={remainingPos === 0 || isReordering}
+                            title="위로 이동"
+                            className={`p-1 rounded ${remainingPos === 0 || isReordering ? 'text-gray-200 dark:text-gray-800' : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                          >
+                            <i className="ri-arrow-up-s-line text-lg"></i>
+                          </button>
+                          <button
+                            onClick={() => moveRemainingExercise(exerciseIndex, 1)}
+                            disabled={remainingPos === remainingIndexes.length - 1 || isReordering}
+                            title="아래로 이동"
+                            className={`p-1 rounded ${remainingPos === remainingIndexes.length - 1 || isReordering ? 'text-gray-200 dark:text-gray-800' : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                          >
+                            <i className="ri-arrow-down-s-line text-lg"></i>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -1042,7 +1111,8 @@ export default function WorkoutSessionPage() {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {workoutSession.status !== 'COMPLETED' && workoutSession.status !== 'CANCELLED' && (

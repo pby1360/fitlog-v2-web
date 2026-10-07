@@ -527,6 +527,16 @@ export const addExerciseToWorkoutSession = async (
     });
 };
 
+export const reorderWorkoutSessionExercises = async (
+    sessionId: number,
+    exercises: { workoutSessionExerciseId: number; order: number }[]
+): Promise<WorkoutSessionResponse> => {
+    return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/reorder-exercises`, {
+        method: 'PATCH',
+        body: JSON.stringify({ exercises }),
+    });
+};
+
 export const endWorkoutSession = async (
     sessionId: number,
     status: 'COMPLETED' | 'CANCELLED'
