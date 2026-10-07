@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '@/components/base/Button';
-import Card from '@/components/base/Card';
 import Header from '@/components/feature/Header';
 import {
   getLatestWorkoutSession,
-  WorkoutSessionResponse,
+  type WorkoutSessionResponse,
   getWorkouts,
-  WorkoutResponse,
+  type WorkoutResponse,
   completeWorkoutSessionSet,
   pauseWorkoutSession,
   resumeWorkoutSession,
@@ -16,7 +15,8 @@ import {
   markExerciseStarted,
   addSetToWorkoutSessionExercise,
   addExerciseToWorkoutSession,
-  CustomExerciseDto
+  type CustomExerciseDto,
+  ApiError,
 } from '@/services/api';
 
 // UI에 맞는 상태 인터페이스 정의
@@ -65,7 +65,6 @@ export default function WorkoutSessionPage() {
   const [restTimeLeft, setRestTimeLeft] = useState(0);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showStopModal, setShowStopModal] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
@@ -81,7 +80,17 @@ export default function WorkoutSessionPage() {
   const navigate = useNavigate();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const restEndsAtRef = useRef<number | null>(null); // 휴식 종료 예정 시각(ms)
+  const restRemainingRef = useRef(0); // 일시정지 시 보존할 남은 휴식 시간(초)
+  // 사용자 조작(저장·일시정지·종료 등) 실패를 화면에 알린다. 콘솔에만 남기면 기록이 저장되지 않은 걸 모른다.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const reportActionError = (action: string, error: unknown) => {
+    console.error(`Failed: ${action}`, error);
+    const detail = error instanceof Error ? error.message : '';
+    const requestId = error instanceof ApiError && error.requestId ? ` (요청 ID: ${error.requestId})` : '';
+    setActionError(`${action}에 실패했습니다. ${detail}${requestId}`);
+  };
+  const audioRef = useRef<{ play: () => void } | null>(null);
   const exerciseStartTimeRef = useRef<number>(0);
   const prevExerciseIndexRef = useRef<number | undefined>(undefined);
   const pauseStartMsRef = useRef<number | null>(null);
@@ -102,7 +111,9 @@ export default function WorkoutSessionPage() {
       if (parsed.sessionId === sessionId && parsed.exerciseIndex === exerciseIndex) {
         return parsed.time;
       }
-    } catch {}
+    } catch {
+      // 저장된 값이 손상됐으면 무시하고 서버 값 기준으로 계산한다
+    }
     return null;
   };
 
@@ -116,7 +127,9 @@ export default function WorkoutSessionPage() {
       if (!stored) return null;
       const parsed = JSON.parse(stored);
       if (parsed.sessionId === sessionId) return parsed.totalTime;
-    } catch {}
+    } catch {
+      // 저장된 값이 손상됐으면 무시하고 서버 값 기준으로 계산한다
+    }
     return null;
   };
 
@@ -309,7 +322,7 @@ export default function WorkoutSessionPage() {
   // 오디오 초기화
   useEffect(() => {
     // 간단한 비프음 생성
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -340,7 +353,7 @@ export default function WorkoutSessionPage() {
         newOscillator.start(audioContext.currentTime);
         newOscillator.stop(audioContext.currentTime + 0.5);
       }
-    } as any;
+    };
 
     return () => {
       audioContext.close();
@@ -348,29 +361,62 @@ export default function WorkoutSessionPage() {
   }, [soundEnabled]);
 
   // 휴식 시간 타이머
+  // 매 tick 마다 1초씩 빼는 대신 종료 시각(deadline)과의 차이로 계산한다.
+  // 백그라운드 탭에서 interval 이 지연돼도 복귀 시 정확한 남은 시간을 보여준다.
+  // 운동이 일시정지되면 남은 시간을 고정하고, 재개하면 그 시점부터 다시 센다.
+  const isSessionPaused = workoutSession?.status === 'PAUSED';
+
+  const startRest = (seconds: number) => {
+    restEndsAtRef.current = Date.now() + seconds * 1000;
+    restRemainingRef.current = seconds;
+    setRestTimeLeft(seconds);
+    setIsResting(seconds > 0);
+  };
+
+  const stopRest = () => {
+    restEndsAtRef.current = null;
+    restRemainingRef.current = 0;
+    setIsResting(false);
+    setRestTimeLeft(0);
+  };
+
   useEffect(() => {
-    if (isResting && restTimeLeft > 0) {
-      restTimerRef.current = setInterval(() => {
-        setRestTimeLeft(prev => {
-          if (prev <= 1) {
-            setIsResting(false);
-            if (soundEnabled && audioRef.current) {
-              audioRef.current.play();
-              setTimeout(() => audioRef.current?.play(), 300);
-              setTimeout(() => audioRef.current?.play(), 600);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (restTimerRef.current) clearInterval(restTimerRef.current);
+    if (!isResting) return;
+
+    if (isSessionPaused) {
+      // 일시정지: 현재 남은 시간을 보존하고 deadline 을 해제한다
+      restEndsAtRef.current = null;
+      return;
     }
+    if (restEndsAtRef.current === null) {
+      // 일시정지 후 재개: 보존한 남은 시간으로 deadline 을 다시 잡는다
+      restEndsAtRef.current = Date.now() + restRemainingRef.current * 1000;
+    }
+
+    const tick = () => {
+      if (restEndsAtRef.current === null) return;
+      const remaining = Math.max(0, Math.ceil((restEndsAtRef.current - Date.now()) / 1000));
+      restRemainingRef.current = remaining;
+      setRestTimeLeft(remaining);
+      if (remaining === 0) {
+        restEndsAtRef.current = null;
+        setIsResting(false);
+        if (soundEnabled && audioRef.current) {
+          audioRef.current.play();
+          setTimeout(() => audioRef.current?.play(), 300);
+          setTimeout(() => audioRef.current?.play(), 600);
+        }
+      }
+    };
+
+    tick();
+    restTimerRef.current = setInterval(tick, 500);
+    document.addEventListener('visibilitychange', tick);
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
+      document.removeEventListener('visibilitychange', tick);
     };
-  }, [isResting, restTimeLeft, soundEnabled]);
+  }, [isResting, isSessionPaused, soundEnabled]);
 
   // API 연동 핸들러
   const pauseWorkout = async () => {
@@ -382,7 +428,7 @@ export default function WorkoutSessionPage() {
       const updatedSession = await pauseWorkoutSession(workoutSession.id);
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to pause workout:", error);
+      reportActionError('일시정지', error);
       pauseStartMsRef.current = null;
     }
   };
@@ -423,7 +469,7 @@ export default function WorkoutSessionPage() {
       clearPauseSnapshot();
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to resume workout:", error);
+      reportActionError('운동 재개', error);
     }
   };
 
@@ -434,7 +480,7 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
       setShowCompleteModal(true);
     } catch (error) {
-      console.error("Failed to complete workout:", error);
+      reportActionError('운동 완료', error);
     }
   };
 
@@ -444,7 +490,7 @@ export default function WorkoutSessionPage() {
       await endWorkoutSession(workoutSession.id, 'CANCELLED');
       navigate('/workout');
     } catch (error) {
-      console.error("Failed to stop workout:", error);
+      reportActionError('운동 종료', error);
     } finally {
       setShowStopModal(false);
     }
@@ -471,13 +517,12 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
 
       if (updatedSession.status !== 'COMPLETED') {
-        setRestTimeLeft(currentSet.restTime);
-        setIsResting(true);
+        startRest(currentSet.restTime);
       } else {
         setShowCompleteModal(true);
       }
     } catch (error) {
-      console.error("Failed to complete set:", error);
+      reportActionError('세트 기록 저장', error);
     } finally {
       setIsCompletingSet(false); // API 호출 완료 시 로딩 상태 해제
     }
@@ -505,7 +550,7 @@ export default function WorkoutSessionPage() {
       );
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error("Failed to add set:", error);
+      reportActionError('세트 추가', error);
     } finally {
       setIsAddingSet(false);
     }
@@ -554,32 +599,9 @@ export default function WorkoutSessionPage() {
       updateSessionState(updatedSession);
       closeAddExerciseModal();
     } catch (error) {
-      console.error('Failed to add exercise:', error);
-      alert('운동을 추가하는 중 오류가 발생했습니다.');
+      reportActionError('운동 추가', error);
     } finally {
       setIsAddingExercise(false);
-    }
-  };
-
-  const resetWorkout = () => {
-    if (workoutSession) {
-      const resetSession: WorkoutSession = {
-        ...workoutSession,
-        status: 'IN_PROGRESS',
-        currentExerciseIndex: 0,
-        currentSetIndex: 0,
-        totalTime: 0,
-        bodyPartTime: 0,
-        exercises: workoutSession.exercises.map(ex => ({
-          ...ex,
-          sets: ex.sets.map(set => ({ ...set, completed: false, actualReps: undefined, actualWeight: undefined, actualMemo: undefined })),
-          completed: false
-        }))
-      };
-      setWorkoutSession(resetSession);
-      setIsResting(false);
-      setRestTimeLeft(0);
-      setShowResetModal(false);
     }
   };
 
@@ -596,11 +618,10 @@ export default function WorkoutSessionPage() {
         currentExercise.id,
         true
       );
-      setIsResting(false);
-      setRestTimeLeft(0);
+      stopRest();
       updateSessionState(updatedSession);
     } catch (error) {
-      console.error('Failed to skip exercise:', error);
+      reportActionError('운동 건너뛰기', error);
     }
   };
 
@@ -656,8 +677,9 @@ export default function WorkoutSessionPage() {
     // 운동 진행 화면
   const currentSet = getCurrentSet();
   const currentExercise = getCurrentExercise();
-  const currentBodyPart = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'bodyPart') : '';
-  const currentExerciseName = currentExercise ? getExerciseProperty(currentExercise.exerciseId, 'name') : '';
+  // 세션에 저장된 이름을 우선 사용한다 (종목 이름이 바뀌거나 보관돼 카탈로그에 없어도 표시)
+  const currentBodyPart = currentExercise ? (currentExercise.workoutPartName || getExerciseProperty(currentExercise.exerciseId, 'bodyPart')) : '';
+  const currentExerciseName = currentExercise ? (currentExercise.workoutName || getExerciseProperty(currentExercise.exerciseId, 'name')) : '';
   const progress = getWorkoutProgress();
 
   // 운동 추가 모달용: 카탈로그 필터링 및 부위별 그룹핑
@@ -750,17 +772,18 @@ export default function WorkoutSessionPage() {
                   </Button>
                 </>
               )}
-              {/* <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowResetModal(true)}
-              >
-                <i className="ri-refresh-line mr-1"></i>
-                초기화
-              </Button> */}
             </div>
           </div>
         </div>
+
+        {actionError && (
+          <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="shrink-0 font-medium" aria-label="오류 닫기">
+              <i className="ri-close-line" />
+            </button>
+          </div>
+        )}
 
         {/* 운동 정보 대시보드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -818,8 +841,7 @@ export default function WorkoutSessionPage() {
               <div className="flex gap-2 justify-center">
                 <Button
                   onClick={() => {
-                    setIsResting(false);
-                    setRestTimeLeft(0);
+                    stopRest();
                   }}
                   variant="outline"
                   className="border-orange-300 text-orange-700 hover:bg-orange-100 dark:border-orange-500/30 dark:text-orange-400 dark:hover:bg-orange-500/10"
@@ -859,7 +881,7 @@ export default function WorkoutSessionPage() {
               </div>
               <div className="text-center p-4 bg-green-50 dark:bg-emerald-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-green-600 dark:text-emerald-400 mb-1">
-                  {workoutSession.currentSetIndex + 1} / {currentExercise.sets.length}
+                  {workoutSession.currentSetIndex + 1} / {currentExercise?.sets.length ?? 0}
                 </div>
                 <div className="text-sm text-green-700 dark:text-emerald-500">세트</div>
               </div>
@@ -994,7 +1016,7 @@ export default function WorkoutSessionPage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium text-gray-900 dark:text-white">{getExerciseProperty(exercise.exerciseId, 'name')}</div>
+                    <div className="font-medium text-gray-900 dark:text-white">{exercise.workoutName || getExerciseProperty(exercise.exerciseId, 'name')}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">{exercise.sets.filter(set => set.completed).length} / {exercise.sets.length} 세트</div>
                 </div>
 
@@ -1201,18 +1223,6 @@ export default function WorkoutSessionPage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowStopModal(false)} className="flex-1">취소</Button>
               <Button onClick={stopWorkout} className="flex-1 bg-red-600 hover:bg-red-700">종료</Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showResetModal && (
-        <div className="fixed inset-0 bg-black/30 dark:bg-black/50 flex items-center justify-center p-4 z-50">
-           <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">운동 초기화</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">운동을 처음부터 다시 시작하시겠습니까? 현재까지의 진행상황이 초기화됩니다.</p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowResetModal(false)} className="flex-1">취소</Button>
-              <Button onClick={resetWorkout} className="flex-1">초기화</Button>
             </div>
           </div>
         </div>

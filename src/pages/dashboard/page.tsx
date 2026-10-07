@@ -1,4 +1,5 @@
 
+import { kstDateDaysAgo } from '../../utils/date';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../../components/feature/Header';
@@ -55,10 +56,9 @@ export default function DashboardPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().slice(0, 10);
+    // 한국 날짜 기준으로 오늘/어제를 판단한다 (toISOString 은 UTC 라 새벽에 하루 밀림)
+    const todayStr = kstDateDaysAgo(0);
+    const yStr = kstDateDaysAgo(1);
     if (dateStr === todayStr) return '오늘';
     if (dateStr === yStr) return '어제';
     const d = new Date(dateStr);

@@ -101,6 +101,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: '0.0.0.0',
+    // 기본은 로컬에서만 접근 가능. LAN 기기로 테스트할 때만 `npm run dev -- --host` 로 일시적으로 연다
+    host: 'localhost',
   }
 })

@@ -15,6 +15,7 @@ interface Exercise {
   name: string;
   bodyPart: string;
   bodyPartId: number;
+  editable: boolean;
 }
 
 interface Props {
@@ -176,6 +177,7 @@ export default function ManageWorkoutsView({ onBack }: Props) {
                           className="flex items-center justify-between p-3 border border-gray-100 dark:border-white/5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                         >
                           <span className="font-medium text-gray-900 dark:text-white">{exercise.name}</span>
+                          {exercise.editable ? (
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -194,6 +196,10 @@ export default function ManageWorkoutsView({ onBack }: Props) {
                               <i className="ri-delete-bin-line"></i>
                             </Button>
                           </div>
+                          ) : (
+                            // 공용 운동은 수정/삭제할 수 없다
+                            <span className="text-xs text-gray-400 dark:text-gray-600">기본 운동</span>
+                          )}
                         </div>
                       ))}
                     </div>

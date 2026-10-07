@@ -11,6 +11,8 @@ const HistoryPage = lazy(() => import('../pages/history/page'));
 const ProfilePage = lazy(() => import('../pages/profile/page'));
 const NotFoundPage = lazy(() => import('../pages/NotFound'));
 const AuthCallbackPage = lazy(() => import('../pages/auth/callback/page'));
+const PrivacyPolicyPage = lazy(() => import('../pages/legal/PrivacyPolicyPage'));
+const TermsPage = lazy(() => import('../pages/legal/TermsPage'));
 
 const routes: RouteObject[] = [
   {
@@ -44,6 +46,14 @@ const routes: RouteObject[] = [
   {
     path: '/profile',
     element: <ProfilePage />,
+  },
+  {
+    path: '/privacy',
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: '/terms',
+    element: <TermsPage />,
   },
   {
     path: '*',

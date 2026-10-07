@@ -51,12 +51,14 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 echo "  firebasehosting.admin / firebase.viewer"
 
 echo ""
-echo "=== 3/4 공급자 허용 레포에 web 추가 ==="
+echo "=== 3/4 공급자 허용 레포에 web 추가 (main 브랜치만) ==="
+# gcp-setup-wif.sh(서버)와 같은 조건을 유지해야 한다. 한쪽만 바꾸면 다른 레포 배포가 막힌다.
 gcloud iam workload-identity-pools providers update-oidc "$PROVIDER" \
     --location=global --workload-identity-pool="$POOL" \
-    --attribute-condition="assertion.repository=='${REPO_SERVER}' || assertion.repository=='${REPO_WEB}'" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref" \
+    --attribute-condition="(assertion.repository=='${REPO_SERVER}' || assertion.repository=='${REPO_WEB}') && assertion.ref=='refs/heads/main'" \
     --project="$PROJECT_ID"
-echo "  허용: $REPO_SERVER, $REPO_WEB"
+echo "  허용: $REPO_SERVER, $REPO_WEB (refs/heads/main)"
 
 echo ""
 echo "=== 4/4 web 레포에만 이 계정 사용 권한 위임 ==="

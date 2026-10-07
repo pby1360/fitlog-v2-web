@@ -1,41 +1,148 @@
 import { redirectToHome } from '../utils/navigationService';
+import { toKstDateString, toKstTimeString } from '../utils/date';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 API 기본 URL
 
 interface WorkoutPartResponse {
   id: number;
   name: string;
+  editable: boolean; // 본인이 만든 부위만 true (공용 부위는 수정/삭제 불가)
 }
 
-interface WorkoutResponse {
+export interface WorkoutResponse {
   id: number;
   name: string;
   bodyPart: string;
   bodyPartId: number;
+  editable: boolean; // 본인이 만든 운동만 true (공용 운동은 수정/삭제 불가)
 }
+
+// API 오류. 서버 오류 응답 형식 {code, message, requestId} 를 그대로 담는다.
+// - status: HTTP 상태 (네트워크 오류·시간 초과는 0)
+// - code: 서버 오류 코드 (NOT_FOUND, CONFLICT 등) 또는 NETWORK / TIMEOUT
+// - requestId: 서버 로그와 같은 값. 사용자 문의 시 해당 요청을 찾는 데 사용
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly requestId?: string;
+
+  constructor(message: string, status: number, code?: string, requestId?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
+
+// Cloud Run 콜드스타트를 고려한 요청 제한 시간
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const newRequestId = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+// 제한 시간과 requestId 를 붙여 요청한다. 네트워크 오류·시간 초과는 status 0 의 ApiError 로 바꾼다.
+const sendRequest = async (url: string, options: RequestInit | undefined, headers: Record<string, string>): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const requestId = newRequestId();
+  try {
+    return await fetch(url, { ...options, headers: { ...headers, 'X-Request-Id': requestId }, signal: controller.signal });
+  } catch {
+    if (controller.signal.aborted) {
+      throw new ApiError('서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.', 0, 'TIMEOUT', requestId);
+    }
+    throw new ApiError('네트워크 연결을 확인해주세요.', 0, 'NETWORK', requestId);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const toApiError = async (response: Response): Promise<ApiError> => {
+  const body = await response.json().catch(() => null);
+  return new ApiError(
+    body?.message || 'API 요청 실패',
+    response.status,
+    body?.code,
+    body?.requestId ?? response.headers.get('X-Request-Id') ?? undefined,
+  );
+};
 
 let isRedirecting = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-const tryRefreshToken = async (): Promise<string | null> => {
+// Refresh 요청 1회.
+// - 401/400: 로그인 세션이 끝난 것 → null (호출 측에서 로그아웃)
+// - 네트워크 오류/5xx: 일시 장애 → 예외 (로그아웃하지 않고 해당 요청만 실패)
+const requestTokenRefresh = async (): Promise<string | null> => {
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) return null;
 
+  // 네트워크 오류·시간 초과는 sendRequest 가 ApiError(status 0)로 던진다 → 로그아웃하지 않음
+  const response = await sendRequest(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+  }, { 'Content-Type': 'application/json' });
+
+  if (response.status >= 500) {
+    throw await toApiError(response);
+  }
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  localStorage.setItem('accessToken', data.accessToken);
+  localStorage.setItem('refreshToken', data.refreshToken);
+  return data.accessToken;
+};
+
+// 여러 탭이 같은 Refresh 토큰으로 동시에 재발급하지 않도록 Web Locks 로 직렬화한다.
+// 락을 얻었을 때 다른 탭이 이미 토큰을 갱신했다면(localStorage 값이 바뀜) 그 토큰을 그대로 쓴다.
+const refreshAccessToken = async (staleAccessToken: string | null): Promise<string | null> => {
+  const run = async () => {
+    const current = localStorage.getItem('accessToken');
+    if (current && current !== staleAccessToken) return current;
+    return requestTokenRefresh();
+  };
+  if (typeof navigator !== 'undefined' && navigator.locks) {
+    return navigator.locks.request('fitlog-token-refresh', run);
+  }
+  return run();
+};
+
+export interface LoginTokens {
+  accessToken: string;
+  refreshToken: string;
+  imageUrl: string;
+  provider: string;
+}
+
+// OAuth 콜백으로 받은 일회용 코드를 토큰으로 교환한다 (코드는 60초, 1회용)
+export const exchangeLoginCode = async (code: string): Promise<LoginTokens> => {
+  const response = await sendRequest(`${API_BASE_URL}/auth/token`, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  }, { 'Content-Type': 'application/json' });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return response.json();
+};
+
+// 서버에 저장된 Refresh Token을 폐기한다. 네트워크 실패여도 로컬 로그아웃은 계속 진행해야 하므로 예외를 던지지 않는다.
+export const revokeRefreshToken = async (): Promise<void> => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return;
+
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    return data.accessToken;
   } catch {
-    return null;
+    // 무시: 토큰은 만료 시각이 지나면 어차피 무효화된다
   }
 };
 
@@ -50,37 +157,37 @@ const logout = () => {
 
 const fetchWithAuth = async (url: string, options?: RequestInit) => {
   const token = localStorage.getItem('accessToken');
-  const headers = {
+  const extraHeaders = (options?.headers ?? {}) as Record<string, string>;
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
-    ...options?.headers,
+    ...extraHeaders,
   };
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await sendRequest(url, options, headers);
 
   if (response.status === 401) {
     if (!refreshPromise) {
-      refreshPromise = tryRefreshToken().finally(() => { refreshPromise = null; });
+      refreshPromise = refreshAccessToken(token).finally(() => { refreshPromise = null; });
     }
 
     const newToken = await refreshPromise;
 
     if (newToken) {
-      const retryHeaders = {
+      const retryHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${newToken}`,
-        ...options?.headers,
+        ...extraHeaders,
       };
-      const retryResponse = await fetch(url, { ...options, headers: retryHeaders });
+      const retryResponse = await sendRequest(url, options, retryHeaders);
 
       if (retryResponse.status === 401) {
         logout();
-        throw new Error('Unauthorized');
+        throw await toApiError(retryResponse);
       }
 
       if (!retryResponse.ok) {
-        const errorData = await retryResponse.json().catch(() => ({ message: 'API 요청 실패' }));
-        throw new Error(errorData.message || 'API 요청 실패');
+        throw await toApiError(retryResponse);
       }
 
       const text = await retryResponse.text();
@@ -88,12 +195,11 @@ const fetchWithAuth = async (url: string, options?: RequestInit) => {
     }
 
     logout();
-    throw new Error('Unauthorized');
+    throw await toApiError(response);
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'API 요청 실패' }));
-    throw new Error(errorData.message || 'API 요청 실패');
+    throw await toApiError(response);
   }
 
   const text = await response.text();
@@ -136,19 +242,19 @@ export const addWorkout = async (name: string, workoutPartId: number): Promise<v
 };
 
 export const updateWorkout = async (id: number, name: string, workoutPartId: number): Promise<void> => {
-  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ name, workoutPartId }),
   });
 };
 
 export const deleteWorkout = async (id: number): Promise<void> => {
-  return fetchWithAuth(`${API_BASE_URL}/workout/list/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/workout/workouts/${id}`, {
     method: 'DELETE',
   });
 };
 
-// 프로그램 저장을 위한 타입 정의
+// 프로그램 저장을 위한 타입 정의 (BE WorkoutProgramDto.Request 와 동일한 구조)
 interface WorkoutSetDto {
   setNumber: number;
   weight?: number;
@@ -157,14 +263,14 @@ interface WorkoutSetDto {
   memo?: string;
 }
 
-interface WorkoutExerciseDto {
+export interface WorkoutExerciseDto {
   workoutId: number;
-  workoutSets: WorkoutSetDto[];
+  sets: WorkoutSetDto[];
 }
 
-interface WorkoutPartDto {
+export interface WorkoutPartDto {
   workoutPartId: number;
-  workoutExercises: WorkoutExerciseDto[];
+  exercises: WorkoutExerciseDto[];
 }
 
 export interface SaveProgramRequest {
@@ -232,7 +338,7 @@ export const getWorkoutPrograms = async (): Promise<ProgramResponse[]> => {
   return fetchWithAuth(`${API_BASE_URL}/workout-programs`);
 };
 
-export const getMyInfo = async (): Promise<any> => {
+export const getMyInfo = async (): Promise<MemberProfile> => {
   return fetchWithAuth(`${API_BASE_URL}/members/me`);
 };
 
@@ -242,8 +348,6 @@ export interface MemberProfile {
   nickname: string;
   imageUrl: string | null;
   provider: string;
-  phone: string | null;
-  birthDate: string | null;  // "YYYY-MM-DD"
   height: number | null;
   weight: number | null;
   goal: string | null;
@@ -256,8 +360,6 @@ export interface MemberProfile {
 
 export interface MemberUpdateRequest {
   nickname: string;
-  phone: string;
-  birthDate: string;
   height: number | null;
   weight: number | null;
   goal: string;
@@ -273,6 +375,11 @@ export const updateMyProfile = async (data: MemberUpdateRequest): Promise<Member
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+};
+
+// 회원 탈퇴: 서버에서 개인정보·운동 기록·로그인 세션을 모두 파기한다
+export const deleteMyAccount = async (): Promise<void> => {
+  await fetchWithAuth(`${API_BASE_URL}/members/me`, { method: 'DELETE' });
 };
 
 // Workout Session Types
@@ -426,7 +533,7 @@ export const endWorkoutSession = async (
 ): Promise<WorkoutSessionResponse> => {
     return fetchWithAuth(`${API_BASE_URL}/workout-sessions/${sessionId}/end`, {
         method: 'PATCH',
-        body: JSON.stringify({ endTime: new Date().toISOString(), status }),
+        body: JSON.stringify({ status }), // 종료 시각은 서버가 기록한다
     });
 };
 
@@ -503,16 +610,14 @@ interface ServerSessionDetail {
     workoutProgramName: string;
     startTime: string;
     endTime: string;
+    durationSeconds?: number | null; // 서버가 계산한 실제 운동 시간 (일시정지 제외)
     exercises: ServerExerciseResponse[];
 }
 
-const parseIsoDate = (iso: string): string => (iso ? iso.substring(0, 10) : '');
+// 서버 시각(ISO, 오프셋 포함)을 한국 날짜/시간으로 변환한다
+const parseIsoDate = (iso: string): string => (iso ? toKstDateString(new Date(iso)) : '');
 
-const parseIsoTime = (iso: string): string => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-};
+const parseIsoTime = (iso: string): string => (iso ? toKstTimeString(new Date(iso)) : '');
 
 const mapSummaryToLog = (s: ServerLogSummary): WorkoutLogResponse => ({
     id: s.id,
@@ -532,9 +637,10 @@ const mapSummaryToLog = (s: ServerLogSummary): WorkoutLogResponse => ({
 const mapDetailToLog = (r: ServerSessionDetail): WorkoutLogResponse => {
     const exercises = r.exercises ?? [];
     const allSets = exercises.flatMap(e => e.sets ?? []);
-    const totalSeconds = r.startTime && r.endTime
+    // 서버 계산값(일시정지 제외)을 우선 사용하고, 구버전 응답일 때만 시작~종료 차이로 대체한다
+    const totalSeconds = r.durationSeconds ?? (r.startTime && r.endTime
         ? Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 1000)
-        : 0;
+        : 0);
     return {
         id: r.id,
         programName: r.workoutProgramName ?? '',

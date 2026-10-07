@@ -2,6 +2,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { revokeRefreshToken } from '../../services/api';
 
 export default function Header() {
   const location = useLocation();
@@ -31,7 +32,8 @@ export default function Header() {
     setIsUserMenuOpen(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await revokeRefreshToken();
     localStorage.clear();
     navigate('/');
     closeUserMenu();

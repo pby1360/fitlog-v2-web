@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import LoginModal from '../../components/feature/LoginModal';
 
 export default function HomePage() {
@@ -356,8 +356,8 @@ export default function HomePage() {
           </div>
           <p className="text-xs text-gray-600">&copy; 2025 Fitlog. All rights reserved.</p>
           <div className="flex gap-5 text-xs text-gray-600">
-            <a href="#" className="hover:text-gray-400 transition-colors">개인정보처리방침</a>
-            <a href="#" className="hover:text-gray-400 transition-colors">이용약관</a>
+            <Link to="/privacy" className="hover:text-gray-400 transition-colors">개인정보처리방침</Link>
+            <Link to="/terms" className="hover:text-gray-400 transition-colors">이용약관</Link>
           </div>
         </div>
       </footer>
