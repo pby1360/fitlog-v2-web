@@ -192,8 +192,9 @@ export default function WorkoutPage() {
     setPendingSets([{ reps: 10, weight: 0, restTime: 60 }]);
   };
 
+  // 두 번째 세트부터는 직전 세트 값을 그대로 가져온다
   const addPendingSet = () => {
-    setPendingSets(prev => [...prev, { reps: 10, weight: 0, restTime: 60 }]);
+    setPendingSets(prev => [...prev, prev.length > 0 ? { ...prev[prev.length - 1] } : { reps: 10, weight: 0, restTime: 60 }]);
   };
 
   const removePendingSet = (index: number) => {
