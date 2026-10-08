@@ -9,6 +9,7 @@ import {
   LandingHeader,
   WorkflowSection,
 } from '@/features/landing';
+import { hasAccessToken } from '@/shared/lib/authStorage';
 
 // 비로그인 랜딩 페이지 (항상 다크). 로그인돼 있으면 대시보드로 보낸다
 export default function HomePage() {
@@ -17,7 +18,7 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (localStorage.getItem('accessToken')) {
+    if (hasAccessToken()) {
       navigate('/dashboard');
     }
   }, [navigate]);

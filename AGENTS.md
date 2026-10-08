@@ -82,6 +82,7 @@ src/
     ui/                        Button(brand·subtle·danger variant), Card, Input, Modal, ConfirmDialog,
                                Spinner·LoadingState, EmptyState, ErrorBanner, PageHeader(브레드크럼)
     hooks/useReorder.ts        목록 순서 변경 (위/아래 버튼 + 드래그 앤 드롭)
+    lib/authStorage.ts         로그인 토큰·프로필 표시 정보 저장 (localStorage 키는 여기서만)
     lib/date.ts                KST 날짜 유틸
     lib/format.ts              formatDurationKo · formatDurationShort · formatClock · completionRate
     lib/navigation.ts          컴포넌트 밖에서 navigate (401 → 홈 이동)
@@ -138,12 +139,12 @@ src/
   - 엔드포인트 함수는 각 feature의 `api.ts` 에 두고, 반드시 `@/shared/api/client` 의 `fetchWithAuth` 를 거친다 ( 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
   - 오류는 `ApiError` (`status`, `code`, `requestId`). 사용자에게 보여줄 때 `requestId` 를 함께 노출한다.
   - 새 코드에서는 `alert()` 대신 화면 내 에러 표시(배너)를 쓴다.
-- **localStorage 키** (임의로 키를 추가하지 말고 여기에 기록)
+- **localStorage 키** (임의로 키를 추가하지 말고 여기에 기록. 직접 `localStorage` 를 부르지 말고 아래 모듈을 거친다)
 
   | 키 | 위치 | 용도 |
   |---|---|---|
-  | `accessToken`, `refreshToken` | `shared/api/client.ts`, `features/auth/api.ts`, `pages/auth/callback` | 인증 토큰 |
-  | `imageUrl`, `provider` | `pages/auth/callback`, `app/layouts/UserMenu` | 프로필 이미지, 로그인 제공자 |
+  | `accessToken`, `refreshToken` | `shared/lib/authStorage.ts` | 인증 토큰 |
+  | `imageUrl`, `provider` | `shared/lib/authStorage.ts` | 프로필 이미지, 로그인 제공자 |
   | `theme` | `app/providers/ThemeProvider` | 다크/라이트 |
   | `exercise_start_time`, `pause_snapshot` | `features/session/lib/timerStorage.ts` | 새로고침 후 타이머 복원 |
 

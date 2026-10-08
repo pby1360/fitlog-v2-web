@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { clearLocalData } from '@/shared/lib/authStorage';
 import { deleteMyAccount, getMyProfile, updateMyProfile } from '../api';
 import { profileToEditData, type EditData } from '../lib/profileOptions';
 import type { MemberProfile } from '../types';
@@ -75,7 +76,7 @@ export function useProfile() {
     setDeleteError(null);
     try {
       await deleteMyAccount();
-      localStorage.clear();
+      clearLocalData();
       navigate('/', { replace: true });
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : '탈퇴 처리에 실패했습니다.');

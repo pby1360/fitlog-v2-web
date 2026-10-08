@@ -1,4 +1,5 @@
 import { redirectToHome } from '@/shared/lib/navigation';
+import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '@/shared/lib/authStorage';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 API 기본 URL
 
@@ -62,7 +63,7 @@ let refreshPromise: Promise<string | null> | null = null;
 // - 401/400: 로그인 세션이 끝난 것 → null (호출 측에서 로그아웃)
 // - 네트워크 오류/5xx: 일시 장애 → 예외 (로그아웃하지 않고 해당 요청만 실패)
 const requestTokenRefresh = async (): Promise<string | null> => {
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
   // 네트워크 오류·시간 초과는 sendRequest 가 ApiError(status 0)로 던진다 → 로그아웃하지 않음
@@ -77,16 +78,15 @@ const requestTokenRefresh = async (): Promise<string | null> => {
   if (!response.ok) return null;
 
   const data = await response.json();
-  localStorage.setItem('accessToken', data.accessToken);
-  localStorage.setItem('refreshToken', data.refreshToken);
+  saveTokens(data.accessToken, data.refreshToken);
   return data.accessToken;
 };
 
 // 여러 탭이 같은 Refresh 토큰으로 동시에 재발급하지 않도록 Web Locks 로 직렬화한다.
-// 락을 얻었을 때 다른 탭이 이미 토큰을 갱신했다면(localStorage 값이 바뀜) 그 토큰을 그대로 쓴다.
+// 락을 얻었을 때 다른 탭이 이미 토큰을 갱신했다면(저장된 값이 바뀜) 그 토큰을 그대로 쓴다.
 const refreshAccessToken = async (staleAccessToken: string | null): Promise<string | null> => {
   const run = async () => {
-    const current = localStorage.getItem('accessToken');
+    const current = getAccessToken();
     if (current && current !== staleAccessToken) return current;
     return requestTokenRefresh();
   };
@@ -99,14 +99,13 @@ const refreshAccessToken = async (staleAccessToken: string | null): Promise<stri
 const logout = () => {
   if (!isRedirecting) {
     isRedirecting = true;
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    clearTokens();
     redirectToHome();
   }
 };
 
 export const fetchWithAuth = async (url: string, options?: RequestInit) => {
-  const token = localStorage.getItem('accessToken');
+  const token = getAccessToken();
   const extraHeaders = (options?.headers ?? {}) as Record<string, string>;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

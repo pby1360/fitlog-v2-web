@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { exchangeLoginCode } from '@/features/auth';
+import { saveLogin } from '@/shared/lib/authStorage';
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -32,10 +33,7 @@ export default function AuthCallbackPage() {
 
     exchangeLoginCode(code)
       .then((result) => {
-        localStorage.setItem('accessToken', result.accessToken);
-        localStorage.setItem('refreshToken', result.refreshToken);
-        localStorage.setItem('imageUrl', result.imageUrl || '');
-        localStorage.setItem('provider', result.provider);
+        saveLogin(result);
         // 뒤로가기로 콜백 URL에 돌아오지 않도록 현재 히스토리 항목을 대체한다
         navigate('/dashboard', { replace: true });
       })

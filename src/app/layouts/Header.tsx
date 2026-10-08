@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/app/providers/useTheme';
 import { revokeRefreshToken } from '@/features/auth';
+import { clearLocalData } from '@/shared/lib/authStorage';
 import { UserMenu } from './UserMenu';
 
 const NAV_ITEMS = [
@@ -30,7 +31,7 @@ export function Header() {
 
   const handleLogout = async () => {
     await revokeRefreshToken();
-    localStorage.clear();
+    clearLocalData();
     navigate('/');
   };
 

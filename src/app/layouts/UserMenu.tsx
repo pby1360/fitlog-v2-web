@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getProfileImageUrl } from '@/shared/lib/authStorage';
 
 // 데스크톱 프로필 버튼과 드롭다운 (바깥을 누르면 닫힌다)
 export function UserMenu({ onLogout }: { onLogout: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const imageUrl = localStorage.getItem('imageUrl');
+  const imageUrl = getProfileImageUrl();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
