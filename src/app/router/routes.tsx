@@ -1,6 +1,6 @@
-
 import type { RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
+import { AppLayout } from '@/app/layouts/AppLayout';
 
 const HomePage = lazy(() => import('@/pages/home/page'));
 const DashboardPage = lazy(() => import('@/pages/dashboard/page'));
@@ -20,32 +20,17 @@ const routes: RouteObject[] = [
     element: <HomePage />,
   },
   {
-    path: '/dashboard',
-    element: <DashboardPage />,
-  },
-  {
-    path: '/programs',
-    element: <ProgramsPage />,
-  },
-  {
-    path: '/workout',
-    element: <WorkoutPage />,
-  },
-  {
-    path: '/workout/session',
-    element: <WorkoutSessionPage />,
-  },
-  {
-    path: '/history',
-    element: <HistoryPage />,
-  },
-  {
-    path: '/history/:id',
-    element: <HistoryPage />,
-  },
-  {
-    path: '/profile',
-    element: <ProfilePage />,
+    // 상단 내비게이션이 있는 화면
+    element: <AppLayout />,
+    children: [
+      { path: '/dashboard', element: <DashboardPage /> },
+      { path: '/programs', element: <ProgramsPage /> },
+      { path: '/workout', element: <WorkoutPage /> },
+      { path: '/workout/session', element: <WorkoutSessionPage /> },
+      { path: '/history', element: <HistoryPage /> },
+      { path: '/history/:id', element: <HistoryPage /> },
+      { path: '/profile', element: <ProfilePage /> },
+    ],
   },
   {
     path: '/privacy',

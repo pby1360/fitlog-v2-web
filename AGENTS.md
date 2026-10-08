@@ -40,78 +40,62 @@ npm run preview    # 빌드 결과 미리보기
 
 ## 4. 디렉터리 구조
 
-### 4.1 현재 구조
+의존 방향은 `pages → features → shared` 한 방향이다 (6장). `app/` 은 모두를 조립하는 최상위 계층이다.
 
 ```
 src/
-  main.tsx                   Vite 진입점 (index.html 이 참조)
-  index.css                  Tailwind 지시문 + 전역 스타일
+  main.tsx                     Vite 진입점 (index.html 이 참조)
+  index.css                    Tailwind 지시문 + 전역 스타일
   app/
-    App.tsx                  ThemeProvider + BrowserRouter, 토큰 백그라운드 검증
-    router/routes.tsx        라우트 목록 (lazy 페이지)
-    router/AppRoutes.ts      useRoutes
-    providers/               ThemeContext · ThemeProvider · useTheme (다크/라이트)
-    layouts/Header.tsx       상단 내비게이션 (아직 각 페이지가 직접 렌더링)
-  features/                  도메인별 api.ts · types.ts · index.ts
-    auth/                    로그인 코드 교환·로그아웃, LoginModal
-    exercises/               부위·운동 종목 CRUD
-    programs/                프로그램 CRUD
-    session/                 운동 세션
-    history/                 운동 기록 (lib/mapLog.ts: 서버 DTO → 화면 모델)
-    dashboard/               대시보드 통계
-    profile/                 회원 정보·탈퇴
-  shared/
-    api/client.ts            ApiError, sendRequest, fetchWithAuth (토큰 갱신·로그아웃)
-    ui/                      Button, Card, Input
-    lib/date.ts              KST 날짜 유틸
-    lib/navigation.ts        컴포넌트 밖에서 navigate (401 → 홈 이동)
-  pages/                     라우트별 화면. 대부분 한 파일에 UI·상태가 함께 있음 (분해 예정)
-    home/                    랜딩 (비로그인, 항상 다크)
-    auth/callback/           OAuth 교환 코드 → 토큰 저장
-    dashboard/               통계 요약
-    programs/                프로그램 목록·4단계 생성/수정 위저드
-      ManageWorkoutsView.tsx 운동 종목 관리 (라우트 아님, programs 내부 뷰)
-    workout/                 프로그램 선택 → 시작 전 순서·운동 편집
-      session/               진행 중인 운동 세션 (타이머, 세트 완료, 휴식, 순서 변경)
-    history/                 기록 목록·캘린더·상세 (`/history/:id`)
-    profile/                 프로필 조회·수정·탈퇴
-    legal/                   개인정보처리방침·이용약관 (+ LegalLayout)
+    App.tsx                    ThemeProvider + BrowserRouter, 토큰 백그라운드 검증
+    router/routes.tsx          라우트 목록 (lazy 페이지). 로그인 후 화면은 AppLayout 의 자식 라우트
+    router/AppRoutes.ts        useRoutes
+    providers/                 ThemeContext · ThemeProvider · useTheme (다크/라이트)
+    layouts/AppLayout.tsx      배경 + Header + <Outlet/>. 본문 폭은 각 페이지가 정한다
+    layouts/Header.tsx         상단 내비게이션 (+ UserMenu.tsx)
+  pages/                       라우트 진입점. feature 를 조립만 한다
+    home/ auth/callback/ dashboard/ programs/ workout/ workout/session/ history/ profile/
+    legal/                     개인정보처리방침·이용약관 (+ LegalLayout)
     NotFound.tsx
-  i18n/                      설정만 있고 사용하지 않음
-```
-
-### 4.2 목표 구조 (리팩터링 진행 중)
-
-페이지에 몰린 코드를 기능 단위로 분리한다. **새로 작성하는 코드는 이 구조를 따른다.**
-
-```
-src/
-  app/        진입·프로바이더·라우터·AppLayout(Header + 페이지 셸 + <Outlet/>)
-  pages/      라우트 진입점. feature를 조립만 한다 (~100줄 이하 목표)
-  features/   도메인별 폴더
-    auth/ exercises/ programs/ workout-start/ session/ history/ dashboard/ profile/
-      api.ts        해당 도메인 엔드포인트
-      types.ts      도메인 타입 (유일한 정의 위치)
-      components/   도메인 UI
-      hooks/        상태·이펙트·비즈니스 로직
-      lib/          순수 함수 (DTO 변환 등)
-      index.ts      외부 공개 API
+  features/
+    <feature>/
+      api.ts                   엔드포인트 함수 (fetchWithAuth 사용)
+      types.ts                 서버 DTO·화면 모델 타입 (유일한 정의 위치)
+      components/              도메인 UI
+      hooks/                   상태·이펙트·사용자 조작
+      lib/                     순수 함수 (DTO 변환, 계산, 표시 형식)
+      index.ts                 외부 공개 API. 다른 계층은 이 파일로만 import 한다
+    auth/                      로그인 코드 교환·로그아웃, LoginModal
+    exercises/                 부위·운동 종목 CRUD(useExerciseCatalog), 운동 폼·부위 폼 모달,
+                               운동 추가 피커(ExercisePickerModal, 세트 구성 포함)
+    programs/                  프로그램 목록·카드, 4단계 생성/수정 위저드(components/editor/),
+                               운동 관리 화면, usePrograms·useProgramDraft
+    workout-start/             프로그램 선택, 시작 전 순서 변경·운동 추가, 세션 시작
+    session/                   진행 중인 세션. useWorkoutSession(서버 상태·조작),
+                               useSessionClock(전체·운동 시간), useRestTimer(휴식), useBeep
+    history/                   기록 목록·기간 필터·페이지, 캘린더, 상세(세트별 결과)
+    dashboard/                 히어로·지표 카드·주간 현황·통계 모달·최근 기록
+    profile/                   프로필 히어로·통계·개인정보 폼·탈퇴
+    landing/                   비로그인 랜딩 섹션 (헤더·히어로·기능·사용법·CTA·푸터)
   shared/
-    api/client.ts   ApiError, sendRequest, fetchWithAuth
-    ui/             Button, Input, Card, Modal, ConfirmDialog, Spinner, EmptyState,
-                    ErrorBanner, StatTile, SectionCard, PageHeader
-    hooks/          useReorder 등 도메인 무관 훅
-    lib/            date, format, navigation
+    api/client.ts              ApiError, sendRequest, fetchWithAuth (토큰 갱신·로그아웃)
+    ui/                        Button(brand·subtle·danger variant), Card, Input, Modal, ConfirmDialog,
+                               Spinner·LoadingState, EmptyState, ErrorBanner, PageHeader(브레드크럼)
+    hooks/useReorder.ts        목록 순서 변경 (위/아래 버튼 + 드래그 앤 드롭)
+    lib/date.ts                KST 날짜 유틸
+    lib/format.ts              formatDurationKo · formatDurationShort · formatClock · completionRate
+    lib/navigation.ts          컴포넌트 밖에서 navigate (401 → 홈 이동)
+  i18n/                        설정만 있고 사용하지 않음
 ```
 
-마이그레이션 진행 상태 (완료 시 체크하고 4.1 을 갱신):
+리팩터링 진행 상태 (#37):
 
 - [x] 1. 기반 정리 — `app/`·`shared/` 생성, `api.ts` 를 `shared/api/client.ts` + `features/*/api.ts` 로 분리
-- [ ] 2. 공용 UI 키트 + `AppLayout` 레이아웃 라우트
-- [ ] 3. `exercises` feature — 운동 폼 모달·운동 추가 피커·순서 변경 공통화
-- [ ] 4. 큰 페이지 분해 — session → programs → history → workout → dashboard → profile
-- [ ] 5. 포매터 통일 (`shared/lib/format.ts`)
-- [ ] 6. (선택) TanStack Query, 토큰 저장소 모듈, 미사용 의존성 정리
+- [x] 2. 공용 UI 키트 + `AppLayout` 레이아웃 라우트
+- [x] 3. `exercises` feature — 운동 폼 모달·운동 추가 피커·순서 변경 공통화
+- [x] 4. 큰 페이지 분해 — session · programs · history · workout · dashboard · profile · home
+- [x] 5. 포매터 통일 (`shared/lib/format.ts`)
+- [ ] 6. (선택) TanStack Query, 토큰 저장소 모듈, 미사용 의존성 정리, `alert()` 제거
 
 ## 5. 도메인 용어
 
@@ -133,7 +117,11 @@ src/
 - **page는 조립만** 한다. 상태·이펙트가 많아지면 `hooks/`, 화면 조각은 `components/` 로 뺀다.
 - 한 파일에 컴포넌트 하나, 컴포넌트는 ~250줄 이하를 목표로 한다.
 - 도메인 타입은 해당 feature의 `types.ts` 에서만 정의한다. 페이지 안에서 `Program`, `Exercise` 같은 타입을 다시 선언하지 않는다.
-- 같은 UI가 두 곳 이상에 생기면 `shared/ui` 또는 해당 feature의 `components/` 로 올린다. 모달은 직접 `fixed inset-0 ...` 을 쓰지 말고 공용 `Modal`/`ConfirmDialog` 를 쓴다(2단계 이후).
+- 같은 UI가 두 곳 이상에 생기면 `shared/ui` 또는 해당 feature의 `components/` 로 올린다. 모달은 직접 `fixed inset-0 ...` 을 쓰지 말고 공용 `Modal`/`ConfirmDialog` 를 쓴다.
+- 주요·보조·삭제 버튼은 `Button` 의 `brand`·`subtle`·`danger` variant 를 쓴다. 같은 색 조합을 `className` 으로 다시 쓰지 않는다.
+- 페이지 제목 영역은 `PageHeader` (브레드크럼 + 제목 + 설명 + 액션)를 쓴다.
+- 시간·비율 표시는 `@/shared/lib/format` 을 쓰고 화면마다 새로 만들지 않는다.
+- Tailwind 클래스는 문자열 전체로 쓴다. `text-${color}-400` 처럼 조립하면 빌드에서 빠진다.
 
 ## 7. 코딩 컨벤션
 
@@ -157,20 +145,19 @@ src/
   | 키 | 위치 | 용도 |
   |---|---|---|
   | `accessToken`, `refreshToken` | `shared/api/client.ts`, `features/auth/api.ts`, `pages/auth/callback` | 인증 토큰 |
-  | `imageUrl`, `provider` | `pages/auth/callback`, `app/layouts/Header` | 프로필 이미지, 로그인 제공자 |
+  | `imageUrl`, `provider` | `pages/auth/callback`, `app/layouts/UserMenu` | 프로필 이미지, 로그인 제공자 |
   | `theme` | `app/providers/ThemeProvider` | 다크/라이트 |
-  | `exercise_start_time`, `pause_snapshot` | `pages/workout/session` | 새로고침 후 타이머 복원 |
+  | `exercise_start_time`, `pause_snapshot` | `features/session/lib/timerStorage.ts` | 새로고침 후 타이머 복원 |
 
 ## 8. 주의 사항·알려진 부채
 
 - `i18next`·`react-i18next`·`recharts`·`lucide-react` 는 설치돼 있지만 사용하지 않는다 (`main.tsx` 가 `./i18n` 만 import).
 - 컴포넌트 밖 navigate 수단이 두 개다: `shared/lib/navigation.ts` (사용 중), `app/router/AppRoutes.ts` 의 `window.REACT_APP_NAVIGATE`·`navigatePromise` (사실상 미사용).
-- `history` 의 `formatDate` 는 로컬 시간대 기준이라 대시보드(KST 기준)와 결과가 다를 수 있다.
-- `formatTime` 이 페이지마다 출력 형식이 다르다 (`N시간 N분` / `H:MM:SS` / `Nh Nm`). 통일할 때 화면 출력은 유지한다.
-- `shared/ui` 의 `Button`·`Card`·`Input` 과 `LoginModal` 은 다크모드 스타일이 없다. `Button` variant는 브랜드 색과 달라 대부분 `className` 으로 덮어쓴다.
+- 운동일지의 `formatLogDate`(`features/history/lib/logView.ts`)는 브라우저 시간대 기준이라 대시보드(KST 기준)와 결과가 다를 수 있다.
+- `alert()` 가 남아 있다: `useExerciseCatalog`, `usePrograms`, `ProgramEditor`, `useWorkoutStart`. 화면 내 오류 표시로 바꿀 대상.
+- `Card`·`Input`·`LoginModal` 과 `Button` 의 기본 variant(primary·outline 등)는 다크모드 스타일이 없다. `brand`·`subtle`·`danger` 는 화면을 바꾸지 않으려고 기존 variant 에 덮어쓰던 클래스를 그대로 합친 것이다. 정리할 때는 화면을 함께 확인한다.
 - Windows 로컬에서 `out/` 가 남아 있으면 `vite build` 가 메시지 없이 비정상 종료(0xC0000409)할 수 있다. `out/` 를 지우고 다시 빌드한다.
 - 라우트 가드가 없다. 비로그인 접근은 API 401 → 홈 리다이렉트로 처리된다.
-- 세션 화면의 세트 입력값은 `document.getElementById` 로 읽는다 (리팩터링 시 controlled state로 전환 예정).
 
 ## 9. 검증
 

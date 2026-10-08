@@ -57,3 +57,18 @@ export interface ProgramResponse {
   createdAt: string;
   parts: ProgramPartResponse[];
 }
+
+// 프로그램 생성·수정 중인 운동. 화면에서는 평탄한 목록으로 다루고 저장할 때 부위별 parts 로 묶는다.
+export interface DraftSet {
+  id: string; // 클라이언트 임시 ID
+  reps: number;
+  weight?: number;
+  restTime: number;
+  memo?: string;
+}
+
+export interface DraftExercise {
+  id: string; // 클라이언트 임시 ID
+  exerciseId: number; // 운동 종목 ID
+  sets: DraftSet[];
+}
