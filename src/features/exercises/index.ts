@@ -4,3 +4,4 @@ export { useExerciseCatalog, type ExerciseCatalog } from './hooks/useExerciseCat
 export { ExerciseFormModal } from './components/ExerciseFormModal';
 export { BodyPartFormModal } from './components/BodyPartFormModal';
 export { ExercisePickerModal } from './components/ExercisePickerModal';
+export * from './queries';

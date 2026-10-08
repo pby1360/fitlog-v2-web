@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getWorkouts, type PendingSet, type WorkoutResponse } from '@/features/exercises';
+import { exerciseQueries, type PendingSet, type WorkoutResponse } from '@/features/exercises';
 import { describeError } from '@/shared/lib/errorMessage';
 import {
   addExerciseToWorkoutSession,
@@ -27,6 +28,7 @@ interface Options {
 // 진행 중인 운동 세션: 서버 상태, 타이머, 사용자 조작
 export function useWorkoutSession({ soundEnabled, onWorkoutCompleted }: Options) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [workoutSession, setWorkoutSession] = useState<WorkoutSession | null>(null);
   const [allExercises, setAllExercises] = useState<WorkoutResponse[]>([]);
   const [isCompletingSet, setIsCompletingSet] = useState(false);
@@ -53,7 +55,11 @@ export function useWorkoutSession({ soundEnabled, onWorkoutCompleted }: Options)
   useEffect(() => {
     const load = async () => {
       try {
-        const [session, workouts] = await Promise.all([getLatestWorkoutSession(), getWorkouts()]);
+        // 운동 목록은 다른 화면과 캐시를 함께 쓴다
+        const [session, workouts] = await Promise.all([
+          getLatestWorkoutSession(),
+          queryClient.fetchQuery(exerciseQueries.workouts()),
+        ]);
         if (!session) {
           navigate('/workout');
           return;
@@ -68,7 +74,7 @@ export function useWorkoutSession({ soundEnabled, onWorkoutCompleted }: Options)
       }
     };
     load();
-  }, [navigate, initialize]);
+  }, [navigate, initialize, queryClient]);
 
   const pause = async () => {
     if (!workoutSession) return;

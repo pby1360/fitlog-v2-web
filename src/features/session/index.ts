@@ -8,3 +8,4 @@ export { RestPanel } from './components/RestPanel';
 export { CurrentSetPanel } from './components/CurrentSetPanel';
 export { SessionExerciseList } from './components/SessionExerciseList';
 export { CompleteDialog, SessionConfirmDialog } from './components/SessionDialogs';
+export * from './queries';

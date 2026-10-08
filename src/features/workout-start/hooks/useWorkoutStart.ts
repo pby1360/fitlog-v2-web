@@ -1,51 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getWorkouts, type WorkoutResponse } from '@/features/exercises';
-import { getWorkoutPrograms } from '@/features/programs';
-import { getLatestWorkoutSession, startWorkoutSession } from '@/features/session';
+import { exerciseQueries } from '@/features/exercises';
+import { programQueries } from '@/features/programs';
+import { sessionQueries, startWorkoutSession } from '@/features/session';
 import { ApiError } from '@/shared/api/client';
 import { describeError } from '@/shared/lib/errorMessage';
 import { toCustomExercises, toStartPrograms } from '../lib/startProgram';
 import type { StartExercise, StartProgram } from '../types';
 
 // 운동 시작 화면 데이터. 진행 중인 세션이 있으면 세션 화면으로 보낸다.
-// onLoaded 는 프로그램 목록을 받은 직후 한 번 호출된다 (특정 프로그램으로 바로 진입할 때 사용)
+// onLoaded 는 프로그램 목록을 처음 받았을 때 한 번 호출된다 (특정 프로그램으로 바로 진입할 때 사용)
 export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
   const navigate = useNavigate();
-  const [programs, setPrograms] = useState<StartProgram[]>([]);
-  const [allWorkouts, setAllWorkouts] = useState<WorkoutResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
 
+  // 진행 중인 세션이 없을 때만 프로그램·운동 목록을 불러온다
+  const latestQuery = useQuery(sessionQueries.latest());
+  const noActiveSession = latestQuery.isSuccess && !latestQuery.data;
+  const programsQuery = useQuery({ ...programQueries.list(), enabled: noActiveSession });
+  const workoutsQuery = useQuery({ ...exerciseQueries.workouts(), enabled: noActiveSession });
+
   useEffect(() => {
-    const initialize = async () => {
-      setIsLoading(true);
-      try {
-        const activeSession = await getLatestWorkoutSession();
-        if (activeSession) {
-          navigate('/workout/session');
-          return;
-        }
+    if (latestQuery.data) navigate('/workout/session');
+  }, [latestQuery.data, navigate]);
 
-        const [fetchedPrograms, fetchedWorkouts] = await Promise.all([getWorkoutPrograms(), getWorkouts()]);
-        const startPrograms = toStartPrograms(fetchedPrograms, fetchedWorkouts);
-        setAllWorkouts(fetchedWorkouts);
-        setPrograms(startPrograms);
-        onLoaded?.(startPrograms);
-      } catch (error) {
-        console.error("Failed to initialize workout page:", error);
-        setLoadError(describeError('운동 프로그램 불러오기', error));
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadFailure = latestQuery.error ?? programsQuery.error ?? workoutsQuery.error;
+  useEffect(() => {
+    if (loadFailure) console.error('Failed to initialize workout page:', loadFailure);
+  }, [loadFailure]);
+  const loadError = loadFailure ? describeError('운동 프로그램 불러오기', loadFailure) : null;
 
-    initialize();
+  const programs = useMemo(
+    () => (programsQuery.data && workoutsQuery.data ? toStartPrograms(programsQuery.data, workoutsQuery.data) : []),
+    [programsQuery.data, workoutsQuery.data],
+  );
+  const isLoading = !loadError && (!noActiveSession || programsQuery.isPending || workoutsQuery.isPending);
+
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || loadError || loadedRef.current) return;
+    loadedRef.current = true;
+    onLoaded?.(programs);
     // onLoaded 는 첫 로딩 때만 쓰므로 의존성에서 제외한다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
+  }, [isLoading, loadError, programs]);
 
   const startWorkout = async (programId: number, exercises: StartExercise[]) => {
     setIsStarting(true);
@@ -68,7 +68,7 @@ export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
 
   return {
     programs,
-    allWorkouts,
+    allWorkouts: workoutsQuery.data ?? [],
     isLoading,
     loadError,
     isStarting,

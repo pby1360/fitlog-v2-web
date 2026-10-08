@@ -1,5 +1,6 @@
 import { redirectToHome } from '@/shared/lib/navigation';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '@/shared/lib/authStorage';
+import { queryClient } from './queryClient';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api'; // 백엔드 API 기본 URL
 
@@ -100,6 +101,7 @@ const logout = () => {
   if (!isRedirecting) {
     isRedirecting = true;
     clearTokens();
+    queryClient.clear();
     redirectToHome();
   }
 };

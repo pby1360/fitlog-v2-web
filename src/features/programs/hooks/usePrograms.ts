@@ -1,39 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { describeError } from '@/shared/lib/errorMessage';
-import { deleteWorkoutProgram, getWorkoutPrograms, saveWorkoutProgram, updateWorkoutProgram } from '../api';
-import type { ProgramResponse, SaveProgramRequest } from '../types';
+import { deleteWorkoutProgram, saveWorkoutProgram, updateWorkoutProgram } from '../api';
+import { programKeys, programQueries } from '../queries';
+import type { SaveProgramRequest } from '../types';
 
 export function usePrograms() {
-  const [programs, setPrograms] = useState<ProgramResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const programsQuery = useQuery(programQueries.list());
   // 마지막 삭제·저장 실패 메시지 (화면에 표시)
   const [error, setError] = useState<string | null>(null);
 
-  const reload = async () => {
-    try {
-      setPrograms(await getWorkoutPrograms());
-    } catch (error) {
-      console.error('프로그램 목록을 불러오는 데 실패했습니다:', error);
-      setPrograms([]);
-    }
-  };
-
-  useEffect(() => {
-    getWorkoutPrograms()
-      .then(setPrograms)
-      .catch((error) => console.error('초기 데이터를 불러오는 데 실패했습니다:', error))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: programKeys.list });
 
   const deleteProgram = async (programId: number) => {
     setError(null);
     try {
       await deleteWorkoutProgram(programId);
-      await reload();
+      await refresh();
       return true;
-    } catch (error) {
-      console.error('프로그램 삭제 실패:', error);
-      setError(describeError('프로그램 삭제', error));
+    } catch (err) {
+      console.error('프로그램 삭제 실패:', err);
+      setError(describeError('프로그램 삭제', err));
       return false;
     }
   };
@@ -47,14 +35,24 @@ export function usePrograms() {
       } else {
         await saveWorkoutProgram(payload);
       }
-      await reload();
+      await refresh();
       return true;
-    } catch (error) {
-      console.error('프로그램 저장/수정 실패:', error);
-      setError(describeError(programId !== undefined ? '프로그램 수정' : '프로그램 저장', error));
+    } catch (err) {
+      console.error('프로그램 저장/수정 실패:', err);
+      setError(describeError(programId !== undefined ? '프로그램 수정' : '프로그램 저장', err));
       return false;
     }
   };
 
-  return { programs, isLoading, error, clearError: () => setError(null), deleteProgram, saveProgram };
+  const loadError = programsQuery.error ? describeError('프로그램 목록 불러오기', programsQuery.error) : null;
+
+  return {
+    programs: programsQuery.data ?? [],
+    isLoading: programsQuery.isPending,
+    loadError,
+    error,
+    clearError: () => setError(null),
+    deleteProgram,
+    saveProgram,
+  };
 }

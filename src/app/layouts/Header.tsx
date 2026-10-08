@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/app/providers/useTheme';
 import { revokeRefreshToken } from '@/features/auth';
@@ -26,12 +27,15 @@ export function Header() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const handleLogout = async () => {
     await revokeRefreshToken();
     clearLocalData();
+    // 다음에 로그인하는 사용자에게 이전 데이터가 보이지 않게 캐시를 비운다
+    queryClient.clear();
     navigate('/');
   };
 

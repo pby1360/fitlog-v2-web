@@ -18,7 +18,7 @@ export default function ProgramsPage() {
   // 편집 중인 프로그램. null 이면 새 프로그램
   const [editingProgram, setEditingProgram] = useState<ProgramResponse | null>(null);
   const catalog = useExerciseCatalog();
-  const { programs, isLoading, error, clearError, deleteProgram, saveProgram } = usePrograms();
+  const { programs, isLoading, loadError, error, clearError, deleteProgram, saveProgram } = usePrograms();
 
   const openEditor = (program: ProgramResponse | null) => {
     clearError();
@@ -51,6 +51,7 @@ export default function ProgramsPage() {
     <ProgramList
       programs={programs}
       isLoading={isLoading}
+      loadError={loadError}
       error={error}
       onClearError={clearError}
       onCreate={() => openEditor(null)}

@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { clearLocalData } from '@/shared/lib/authStorage';
-import { deleteMyAccount, getMyProfile, updateMyProfile } from '../api';
+import { deleteMyAccount, updateMyProfile } from '../api';
 import { profileToEditData, type EditData } from '../lib/profileOptions';
-import type { MemberProfile } from '../types';
+import { profileKeys, profileQueries } from '../queries';
 
 const EMPTY_EDIT_DATA: EditData = { nickname: '', height: '', weight: '', goal: '', experience: '' };
 
 // 내 프로필 조회·수정·탈퇴
 export function useProfile() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<MemberProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const profileQuery = useQuery(profileQueries.me());
+  const profile = profileQuery.data ?? null;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<EditData>(EMPTY_EDIT_DATA);
@@ -21,16 +22,6 @@ export function useProfile() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getMyProfile()
-      .then((data) => {
-        setProfile(data);
-        setEditData(profileToEditData(data));
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : '프로필을 불러오지 못했습니다.'))
-      .finally(() => setLoading(false));
-  }, []);
 
   const startEdit = () => {
     if (profile) setEditData(profileToEditData(profile));
@@ -60,7 +51,7 @@ export function useProfile() {
         goal: editData.goal,
         experience: editData.experience,
       });
-      setProfile(updated);
+      queryClient.setQueryData(profileKeys.me, updated);
       setEditData(profileToEditData(updated));
       setIsEditing(false);
     } catch (err) {
@@ -70,13 +61,14 @@ export function useProfile() {
     }
   };
 
-  // 회원 탈퇴: 서버에서 모든 데이터를 파기한 뒤 이 기기의 로그인 정보도 지운다
+  // 회원 탈퇴: 서버에서 모든 데이터를 파기한 뒤 이 기기의 로그인 정보와 캐시도 지운다
   const deleteAccount = async () => {
     setIsDeleting(true);
     setDeleteError(null);
     try {
       await deleteMyAccount();
       clearLocalData();
+      queryClient.clear();
       navigate('/', { replace: true });
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : '탈퇴 처리에 실패했습니다.');
@@ -84,10 +76,14 @@ export function useProfile() {
     }
   };
 
+  const loadError = profileQuery.error
+    ? (profileQuery.error instanceof Error ? profileQuery.error.message : '프로필을 불러오지 못했습니다.')
+    : null;
+
   return {
     profile,
-    loading,
-    error,
+    loading: profileQuery.isPending,
+    error: loadError,
     isEditing,
     editData,
     isSaving,

@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { monthRange } from '@/shared/lib/date';
-import { getWorkoutLog, getWorkoutLogs } from '../api';
 import { periodToDateRange, type Period } from '../lib/logView';
-import type { WorkoutLogPage, WorkoutLogResponse } from '../types';
-
-const PAGE_SIZE = 10;
-// 한 달 기록을 한 번에 가져오기 위한 페이지 크기
-const CALENDAR_PAGE_SIZE = 200;
+import { historyQueries } from '../queries';
+import type { WorkoutLogPage } from '../types';
 
 const EMPTY_PAGE: WorkoutLogPage = {
   logs: [],
@@ -22,83 +19,57 @@ const EMPTY_PAGE: WorkoutLogPage = {
   averageCompletionRate: 0,
 };
 
-// 기간별 기록 목록 (페이지 단위)
+// 기간별 기록 목록 (페이지 단위). 기간을 바꾸면 첫 페이지로 돌아간다
 export function useWorkoutLogList() {
-  const [period, setPeriod] = useState<Period>('1m');
-  const [page, setPage] = useState<WorkoutLogPage>(EMPTY_PAGE);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [period, setPeriodState] = useState<Period>('1m');
+  const [pageNumber, setPageNumber] = useState(0);
+  const { startDate, endDate } = periodToDateRange(period);
+  const query = useQuery(historyQueries.list(pageNumber, startDate, endDate));
 
-  const fetchPage = async (pageNumber: number, targetPeriod: Period = period) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { startDate, endDate } = periodToDateRange(targetPeriod);
-      setPage(await getWorkoutLogs(pageNumber, PAGE_SIZE, startDate, endDate));
-    } catch {
-      setError('운동 기록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
+  const setPeriod = (next: Period) => {
+    setPeriodState(next);
+    setPageNumber(0);
   };
 
-  useEffect(() => {
-    fetchPage(0, period);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period]);
-
-  return { period, setPeriod, page, loading, error, fetchPage };
+  return {
+    period,
+    setPeriod,
+    page: query.data ?? EMPTY_PAGE,
+    loading: query.isPending,
+    error: query.isError ? '운동 기록을 불러오는데 실패했습니다.' : null,
+    fetchPage: setPageNumber,
+  };
 }
 
-// 캘린더: 보고 있는 달의 기록만 기간 조회한다 (오래된 달도 표시되도록)
-export function useCalendarLogs() {
+// 캘린더: 보고 있는 달의 기록만 기간 조회한다 (오래된 달도 표시되도록). enabled 일 때만 조회한다
+export function useCalendarLogs(enabled: boolean) {
   const [month, setMonth] = useState(new Date());
-  const [logs, setLogs] = useState<WorkoutLogResponse[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = async (target: Date = month) => {
-    setError(null);
-    try {
-      const { startDate, endDate } = monthRange(target.getFullYear(), target.getMonth() + 1);
-      const result = await getWorkoutLogs(0, CALENDAR_PAGE_SIZE, startDate, endDate);
-      setLogs(result.logs);
-    } catch {
-      // 실패를 빈 달(운동 안 함)과 구분해 보여준다
-      setError('이 달의 운동 기록을 불러오지 못했습니다.');
-    }
-  };
+  const { startDate, endDate } = monthRange(month.getFullYear(), month.getMonth() + 1);
+  const query = useQuery({ ...historyQueries.range(startDate, endDate), enabled });
 
   const moveMonth = (offset: -1 | 1) => {
     // 일자를 1일로 고정해 31일에서 이동할 때 짧은 달을 건너뛰지 않게 한다
-    const next = new Date(month.getFullYear(), month.getMonth() + offset, 1);
-    setMonth(next);
-    load(next);
+    setMonth(new Date(month.getFullYear(), month.getMonth() + offset, 1));
   };
 
-  return { month, logs, error, load, moveMonth };
+  return {
+    month,
+    logs: query.data?.logs ?? [],
+    // 실패를 빈 달(운동 안 함)과 구분해 보여준다
+    error: query.isError ? '이 달의 운동 기록을 불러오지 못했습니다.' : null,
+    reload: () => query.refetch(),
+    moveMonth,
+  };
 }
 
 // 기록 상세. 불러오지 못하면 목록으로 돌아간다
 export function useWorkoutLogDetail(id: string | undefined) {
   const navigate = useNavigate();
-  const [record, setRecord] = useState<WorkoutLogResponse | null>(null);
+  const query = useQuery({ ...historyQueries.detail(Number(id)), enabled: !!id });
 
   useEffect(() => {
-    setRecord(null);
-    if (!id) return;
+    if (id && query.isError) navigate('/history');
+  }, [id, query.isError, navigate]);
 
-    let cancelled = false;
-    getWorkoutLog(Number(id))
-      .then((log) => {
-        if (!cancelled) setRecord(log);
-      })
-      .catch(() => {
-        if (!cancelled) navigate('/history');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, navigate]);
-
-  return record;
+  return id ? query.data ?? null : null;
 }

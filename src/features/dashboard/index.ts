@@ -8,3 +8,4 @@ export { WeeklyCard, AnalysisCard } from './components/SummaryCards';
 export { QuickActions } from './components/QuickActions';
 export { RecentWorkouts } from './components/RecentWorkouts';
 export { StatsModal } from './components/StatsModal';
+export * from './queries';

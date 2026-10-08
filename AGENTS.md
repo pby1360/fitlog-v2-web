@@ -17,7 +17,7 @@
 | UI | React 19, Tailwind CSS 3 (`darkMode: 'class'`), Remix Icon (`index.html` CDN, `ri-*` 클래스) |
 | 라우팅 | React Router v7 — `useRoutes` + `lazy()` (`src/router/config.tsx`) |
 | 언어 | TypeScript 5.8 (`strict`, `noUnusedLocals`, `verbatimModuleSyntax`) |
-| 상태·데이터 | 라이브러리 없음. 페이지별 `useState`/`useEffect` + `features/*/api.ts` |
+| 서버 상태 | TanStack Query 5 (`shared/api/queryClient.ts`, 기능별 `queries.ts`) |
 | 테스트 | 없음 |
 
 > **Next.js가 아니다.** `pages/**/page.tsx` 는 파일 이름 관례일 뿐이고, 라우트는 `src/router/config.tsx` 에 직접 등록한다. `'use client'`, `layout.tsx` 같은 Next 개념은 쓰지 않는다.
@@ -60,6 +60,7 @@ src/
   features/
     <feature>/
       api.ts                   엔드포인트 함수 (fetchWithAuth 사용)
+      queries.ts               TanStack Query 키·queryOptions (다른 기능도 이것으로 캐시를 공유)
       types.ts                 서버 DTO·화면 모델 타입 (유일한 정의 위치)
       components/              도메인 UI
       hooks/                   상태·이펙트·사용자 조작
@@ -79,6 +80,7 @@ src/
     landing/                   비로그인 랜딩 섹션 (헤더·히어로·기능·사용법·CTA·푸터)
   shared/
     api/client.ts              ApiError, sendRequest, fetchWithAuth (토큰 갱신·로그아웃)
+    api/queryClient.ts         QueryClient (retry·포커스 재조회 끔)
     ui/                        Button(brand·subtle·danger variant), Card, Input, Modal, ConfirmDialog,
                                Spinner·LoadingState, EmptyState, ErrorBanner, PageHeader(브레드크럼)
     hooks/useReorder.ts        목록 순서 변경 (위/아래 버튼 + 드래그 앤 드롭)
@@ -96,7 +98,7 @@ src/
 - [x] 3. `exercises` feature — 운동 폼 모달·운동 추가 피커·순서 변경 공통화
 - [x] 4. 큰 페이지 분해 — session · programs · history · workout · dashboard · profile · home
 - [x] 5. 포매터 통일 (`shared/lib/format.ts`)
-- [ ] 6. (선택) TanStack Query, 토큰 저장소 모듈, 미사용 의존성 정리, `alert()` 제거
+- [x] 6. TanStack Query, 토큰 저장소 모듈, 미사용 의존성 정리, `alert()` 제거
 
 ## 5. 도메인 용어
 
@@ -136,6 +138,12 @@ src/
   - 아이콘은 Remix Icon `<i className="ri-..."/>` 만 쓴다.
 - **문구**: UI 텍스트·주석·커밋 메시지는 한국어. 다국어 라이브러리는 쓰지 않으므로 문자열을 직접 쓴다.
 - **날짜·시간**: 서버 기준은 KST. `@/shared/lib/date` (`toKstDateString`, `toKstTimeString`, `kstDateDaysAgo`, `monthRange`) 를 쓰고 `new Date().toISOString().slice(0,10)` 같은 UTC 기준 계산은 하지 않는다.
+- **서버 데이터 조회**
+  - 조회는 기능의 `queries.ts` 에 `queryOptions` 로 정의하고 `useQuery` 로 쓴다. 화면에서 `useEffect` + `useState` 로 직접 불러오지 않는다.
+  - 변경(추가·수정·삭제) 후에는 관련 쿼리를 `invalidateQueries` 로 무효화한다. 응답이 새 값이면 `setQueryData` 로 바로 넣어도 된다.
+  - 진행 중인 세션처럼 화면 이동을 결정하는 값은 `gcTime: 0` 으로 캐시에 남기지 않는다 (`sessionQueries.latest`).
+  - 로그아웃·탈퇴·토큰 만료 시 `queryClient.clear()` 로 캐시를 비운다.
+  - 예외: 운동 세션 화면은 타이머와 얽혀 있어 `useWorkoutSession` 이 직접 불러오고 관리한다.
 - **API 호출**
   - 엔드포인트 함수는 각 feature의 `api.ts` 에 두고, 반드시 `@/shared/api/client` 의 `fetchWithAuth` 를 거친다 ( 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
   - 오류는 `ApiError` (`status`, `code`, `requestId`). 사용자에게 보여줄 때 `requestId` 를 함께 노출한다.

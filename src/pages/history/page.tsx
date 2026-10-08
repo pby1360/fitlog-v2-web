@@ -20,7 +20,7 @@ export default function HistoryPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<HistoryMode>('list');
   const list = useWorkoutLogList();
-  const calendar = useCalendarLogs();
+  const calendar = useCalendarLogs(mode === 'calendar' && !id);
   const detail = useWorkoutLogDetail(id);
 
   const openDetail = (record: WorkoutLogResponse) => navigate(`/history/${record.id}`);
@@ -32,7 +32,6 @@ export default function HistoryPage() {
 
   const showCalendar = () => {
     setMode('calendar');
-    calendar.load();
     if (id) navigate('/history');
   };
 
@@ -62,7 +61,7 @@ export default function HistoryPage() {
           month={calendar.month}
           logs={calendar.logs}
           error={calendar.error}
-          onRetry={() => calendar.load()}
+          onRetry={calendar.reload}
           onMoveMonth={calendar.moveMonth}
           onOpen={openDetail}
         />
