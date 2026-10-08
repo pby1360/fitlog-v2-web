@@ -1,0 +1,11 @@
+export * from './api';
+export type * from './types';
+export { useDashboard, useNow } from './hooks/useDashboard';
+export { toWeekRows } from './lib/dashboardView';
+export { DashboardHero } from './components/DashboardHero';
+export { StatCards } from './components/StatCards';
+export { WeeklyCard, AnalysisCard } from './components/SummaryCards';
+export { QuickActions } from './components/QuickActions';
+export { RecentWorkouts } from './components/RecentWorkouts';
+export { StatsModal } from './components/StatsModal';
+export * from './queries';
