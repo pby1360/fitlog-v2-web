@@ -85,7 +85,6 @@ src/
     lib/date.ts                KST 날짜 유틸
     lib/format.ts              formatDurationKo · formatDurationShort · formatClock · completionRate
     lib/navigation.ts          컴포넌트 밖에서 navigate (401 → 홈 이동)
-  i18n/                        설정만 있고 사용하지 않음
 ```
 
 리팩터링 진행 상태 (#37):
@@ -128,13 +127,12 @@ src/
 - **import**: `@/` alias (`@/*` → `src/*`). 상대 경로는 같은 폴더(같은 feature) 안에서만.
 - **export**: 페이지는 `lazy()` 때문에 default export. 그 외 컴포넌트·훅·함수는 named export.
 - **이름**: 컴포넌트 파일 PascalCase(`ExerciseFormModal.tsx`), 훅 `useXxx.ts`, 그 외 camelCase.
-- **auto-import**: `unplugin-auto-import` 가 React·react-router 훅을 전역으로 만들지만, 명시적으로 import한다.
 - **스타일**
   - Tailwind 유틸리티만 사용. 색상 클래스에는 항상 `dark:` 쌍을 둔다.
   - 페이지 배경 `bg-gray-50 dark:bg-[#0a0a0a]`, 카드·패널 `bg-white dark:bg-[#111]`, 본문 폭 `max-w-4xl mx-auto px-4 py-6`.
   - 주요 버튼은 브랜드 그라디언트 `bg-gradient-to-r from-indigo-500 to-violet-600`.
-  - 아이콘은 Remix Icon `<i className="ri-..."/>`. `lucide-react` 는 쓰지 않는다.
-- **문구**: UI 텍스트·주석·커밋 메시지는 한국어. i18n은 쓰지 않으므로 문자열을 직접 쓴다.
+  - 아이콘은 Remix Icon `<i className="ri-..."/>` 만 쓴다.
+- **문구**: UI 텍스트·주석·커밋 메시지는 한국어. 다국어 라이브러리는 쓰지 않으므로 문자열을 직접 쓴다.
 - **날짜·시간**: 서버 기준은 KST. `@/shared/lib/date` (`toKstDateString`, `toKstTimeString`, `kstDateDaysAgo`, `monthRange`) 를 쓰고 `new Date().toISOString().slice(0,10)` 같은 UTC 기준 계산은 하지 않는다.
 - **API 호출**
   - 엔드포인트 함수는 각 feature의 `api.ts` 에 두고, 반드시 `@/shared/api/client` 의 `fetchWithAuth` 를 거친다 ( 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
@@ -151,8 +149,6 @@ src/
 
 ## 8. 주의 사항·알려진 부채
 
-- `i18next`·`react-i18next`·`recharts`·`lucide-react` 는 설치돼 있지만 사용하지 않는다 (`main.tsx` 가 `./i18n` 만 import).
-- 컴포넌트 밖 navigate 수단이 두 개다: `shared/lib/navigation.ts` (사용 중), `app/router/AppRoutes.ts` 의 `window.REACT_APP_NAVIGATE`·`navigatePromise` (사실상 미사용).
 - 운동일지의 `formatLogDate`(`features/history/lib/logView.ts`)는 브라우저 시간대 기준이라 대시보드(KST 기준)와 결과가 다를 수 있다.
 - `alert()` 가 남아 있다: `useExerciseCatalog`, `usePrograms`, `ProgramEditor`, `useWorkoutStart`. 화면 내 오류 표시로 바꿀 대상.
 - `Card`·`Input`·`LoginModal` 과 `Button` 의 기본 variant(primary·outline 등)는 다크모드 스타일이 없다. `brand`·`subtle`·`danger` 는 화면을 바꾸지 않으려고 기존 variant 에 덮어쓰던 클래스를 그대로 합친 것이다. 정리할 때는 화면을 함께 확인한다.
