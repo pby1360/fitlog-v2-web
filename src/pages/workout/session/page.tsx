@@ -16,7 +16,7 @@ import {
   useWorkoutSession,
   type SessionExercise,
 } from '@/features/session';
-import { ErrorBanner } from '@/shared/ui/ErrorBanner';
+import { DismissibleError } from '@/shared/ui/ErrorBanner';
 
 export default function WorkoutSessionPage() {
   const navigate = useNavigate();
@@ -82,17 +82,7 @@ export default function WorkoutSessionPage() {
         onComplete={session.complete}
       />
 
-      {session.actionError && (
-        <ErrorBanner
-          action={
-            <button onClick={session.clearActionError} className="shrink-0 font-medium" aria-label="오류 닫기">
-              <i className="ri-close-line" />
-            </button>
-          }
-        >
-          {session.actionError}
-        </ErrorBanner>
-      )}
+      {session.actionError && <DismissibleError message={session.actionError} onDismiss={session.clearActionError} />}
 
       <SessionStats
         totalTime={session.totalTime}

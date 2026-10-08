@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/shared/ui/Button';
+import { ErrorBanner } from '@/shared/ui/ErrorBanner';
 import { Input } from '@/shared/ui/Input';
 import { Modal } from '@/shared/ui/Modal';
 import type { WorkoutPartResponse } from '../types';
@@ -12,6 +13,8 @@ interface ExerciseFormModalProps {
   // 지정하지 않으면 첫 번째 부위를 선택한다
   initialBodyPartId?: number;
   namePlaceholder?: string;
+  // 저장 실패 메시지
+  error?: string | null;
   onSubmit: (name: string, bodyPartId: number) => void;
   onCancel: () => void;
 }
@@ -24,6 +27,7 @@ export function ExerciseFormModal({
   initialName = '',
   initialBodyPartId,
   namePlaceholder,
+  error,
   onSubmit,
   onCancel,
 }: ExerciseFormModalProps) {
@@ -58,6 +62,7 @@ export function ExerciseFormModal({
           </select>
         </div>
       </div>
+      {error && <ErrorBanner className="mt-4">{error}</ErrorBanner>}
       <div className="flex gap-2 mt-4">
         <Button variant="subtle" onClick={onCancel}>
           취소

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { ErrorBanner } from '@/shared/ui/ErrorBanner';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingState } from '@/shared/ui/Spinner';
 import { countSets, estimateMinutes } from '../lib/startProgram';
@@ -8,11 +9,13 @@ import type { StartProgram } from '../types';
 interface ProgramPickerProps {
   programs: StartProgram[];
   isLoading: boolean;
+  // 목록을 불러오지 못했을 때 메시지 (빈 목록과 구분해 보여준다)
+  loadError: string | null;
   onSelect: (program: StartProgram) => void;
 }
 
 // 운동할 프로그램 선택
-export function ProgramPicker({ programs, isLoading, onSelect }: ProgramPickerProps) {
+export function ProgramPicker({ programs, isLoading, loadError, onSelect }: ProgramPickerProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <PageHeader
@@ -23,6 +26,10 @@ export function ProgramPicker({ programs, isLoading, onSelect }: ProgramPickerPr
 
       {isLoading ? (
         <LoadingState />
+      ) : loadError ? (
+        <ErrorBanner action={<button onClick={() => window.location.reload()} className="shrink-0 font-medium underline">다시 시도</button>}>
+          {loadError}
+        </ErrorBanner>
       ) : programs.length === 0 ? (
         <EmptyState
           icon="ri-fitness-line"

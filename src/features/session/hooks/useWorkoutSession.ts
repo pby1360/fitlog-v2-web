@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWorkouts, type PendingSet, type WorkoutResponse } from '@/features/exercises';
-import { ApiError } from '@/shared/api/client';
+import { describeError } from '@/shared/lib/errorMessage';
 import {
   addExerciseToWorkoutSession,
   addSetToWorkoutSessionExercise,
@@ -42,9 +42,7 @@ export function useWorkoutSession({ soundEnabled, onWorkoutCompleted }: Options)
 
   const reportActionError = (action: string, error: unknown) => {
     console.error(`Failed: ${action}`, error);
-    const detail = error instanceof Error ? error.message : '';
-    const requestId = error instanceof ApiError && error.requestId ? ` (요청 ID: ${error.requestId})` : '';
-    setActionError(`${action}에 실패했습니다. ${detail}${requestId}`);
+    setActionError(describeError(action, error));
   };
 
   const applyResponse = (response: WorkoutSessionResponse) => {

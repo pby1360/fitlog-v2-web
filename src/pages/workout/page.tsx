@@ -21,7 +21,8 @@ export default function WorkoutPage() {
     if (target) setSelectedProgram(target);
   };
 
-  const { programs, allWorkouts, isLoading, isStarting, startWorkout } = useWorkoutStart(selectFromRouteState);
+  const { programs, allWorkouts, isLoading, loadError, isStarting, startError, clearStartError, startWorkout } =
+    useWorkoutStart(selectFromRouteState);
 
   return (
     <>
@@ -32,11 +33,13 @@ export default function WorkoutPage() {
           program={selectedProgram}
           allWorkouts={allWorkouts}
           isStarting={isStarting}
-          onBack={() => setSelectedProgram(null)}
+          startError={startError}
+          onClearStartError={clearStartError}
+          onBack={() => { clearStartError(); setSelectedProgram(null); }}
           onStart={(exercises) => startWorkout(selectedProgram.id, exercises)}
         />
       ) : (
-        <ProgramPicker programs={programs} isLoading={isLoading} onSelect={setSelectedProgram} />
+        <ProgramPicker programs={programs} isLoading={isLoading} loadError={loadError} onSelect={setSelectedProgram} />
       )}
     </>
   );

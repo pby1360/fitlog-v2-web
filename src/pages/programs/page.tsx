@@ -18,9 +18,10 @@ export default function ProgramsPage() {
   // 편집 중인 프로그램. null 이면 새 프로그램
   const [editingProgram, setEditingProgram] = useState<ProgramResponse | null>(null);
   const catalog = useExerciseCatalog();
-  const { programs, isLoading, deleteProgram, saveProgram } = usePrograms();
+  const { programs, isLoading, error, clearError, deleteProgram, saveProgram } = usePrograms();
 
   const openEditor = (program: ProgramResponse | null) => {
+    clearError();
     setEditingProgram(program);
     setView('editor');
   };
@@ -30,7 +31,7 @@ export default function ProgramsPage() {
   };
 
   if (view === 'manage-workouts') {
-    return <ManageExercisesView catalog={catalog} onBack={() => setView('list')} />;
+    return <ManageExercisesView catalog={catalog} onBack={() => { catalog.clearError(); setView('list'); }} />;
   }
 
   if (view === 'editor') {
@@ -38,8 +39,10 @@ export default function ProgramsPage() {
       <ProgramEditor
         program={editingProgram}
         catalog={catalog}
+        saveError={error}
+        onClearSaveError={clearError}
         onSave={handleSave}
-        onCancel={() => setView('list')}
+        onCancel={() => { clearError(); setView('list'); }}
       />
     );
   }
@@ -48,6 +51,8 @@ export default function ProgramsPage() {
     <ProgramList
       programs={programs}
       isLoading={isLoading}
+      error={error}
+      onClearError={clearError}
       onCreate={() => openEditor(null)}
       onEdit={openEditor}
       onDelete={deleteProgram}

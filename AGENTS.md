@@ -85,7 +85,8 @@ src/
     lib/authStorage.ts         로그인 토큰·프로필 표시 정보 저장 (localStorage 키는 여기서만)
     lib/date.ts                KST 날짜 유틸
     lib/format.ts              formatDurationKo · formatDurationShort · formatClock · completionRate
-    lib/navigation.ts          컴포넌트 밖에서 navigate (401 → 홈 이동)
+    lib/errorMessage.ts        describeError: 화면에 보여줄 실패 문구 (+ 요청 ID)
+    lib/navigation.ts          컴포넌트 밖에서 navigate (토큰 재발급 실패 → 홈, 만료 안내)
 ```
 
 리팩터링 진행 상태 (#37):
@@ -138,7 +139,8 @@ src/
 - **API 호출**
   - 엔드포인트 함수는 각 feature의 `api.ts` 에 두고, 반드시 `@/shared/api/client` 의 `fetchWithAuth` 를 거친다 ( 토큰 첨부, 20초 제한, `X-Request-Id`, 401 시 탭 간 직렬화된 토큰 갱신 후 재시도, 실패 시 로그아웃 → 홈).
   - 오류는 `ApiError` (`status`, `code`, `requestId`). 사용자에게 보여줄 때 `requestId` 를 함께 노출한다.
-  - 새 코드에서는 `alert()` 대신 화면 내 에러 표시(배너)를 쓴다.
+  - `alert()`·`confirm()` 은 쓰지 않는다. 실패는 훅의 `error` 상태로 두고 `ErrorBanner`/`DismissibleError` 로 보여준다 (모달이 열려 있으면 모달 안에).
+  - 실패 문구는 `describeError(동작, error)` (`@/shared/lib/errorMessage`)로 만든다. "OO에 실패했습니다. 상세 (요청 ID: …)" 형식.
 - **localStorage 키** (임의로 키를 추가하지 말고 여기에 기록. 직접 `localStorage` 를 부르지 말고 아래 모듈을 거친다)
 
   | 키 | 위치 | 용도 |
@@ -151,7 +153,6 @@ src/
 ## 8. 주의 사항·알려진 부채
 
 - 운동일지의 `formatLogDate`(`features/history/lib/logView.ts`)는 브라우저 시간대 기준이라 대시보드(KST 기준)와 결과가 다를 수 있다.
-- `alert()` 가 남아 있다: `useExerciseCatalog`, `usePrograms`, `ProgramEditor`, `useWorkoutStart`. 화면 내 오류 표시로 바꿀 대상.
 - `Card`·`Input`·`LoginModal` 과 `Button` 의 기본 variant(primary·outline 등)는 다크모드 스타일이 없다. `brand`·`subtle`·`danger` 는 화면을 바꾸지 않으려고 기존 variant 에 덮어쓰던 클래스를 그대로 합친 것이다. 정리할 때는 화면을 함께 확인한다.
 - Windows 로컬에서 `out/` 가 남아 있으면 `vite build` 가 메시지 없이 비정상 종료(0xC0000409)할 수 있다. `out/` 를 지우고 다시 빌드한다.
 - 라우트 가드가 없다. 비로그인 접근은 API 401 → 홈 리다이렉트로 처리된다.

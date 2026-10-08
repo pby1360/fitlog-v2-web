@@ -4,6 +4,7 @@ import { getWorkouts, type WorkoutResponse } from '@/features/exercises';
 import { getWorkoutPrograms } from '@/features/programs';
 import { getLatestWorkoutSession, startWorkoutSession } from '@/features/session';
 import { ApiError } from '@/shared/api/client';
+import { describeError } from '@/shared/lib/errorMessage';
 import { toCustomExercises, toStartPrograms } from '../lib/startProgram';
 import type { StartExercise, StartProgram } from '../types';
 
@@ -15,6 +16,8 @@ export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
   const [allWorkouts, setAllWorkouts] = useState<WorkoutResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     const initialize = async () => {
@@ -32,8 +35,8 @@ export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
         setPrograms(startPrograms);
         onLoaded?.(startPrograms);
       } catch (error) {
-        alert("데이터를 불러오는데 실패했습니다.");
         console.error("Failed to initialize workout page:", error);
+        setLoadError(describeError('운동 프로그램 불러오기', error));
       } finally {
         setIsLoading(false);
       }
@@ -46,6 +49,7 @@ export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
 
   const startWorkout = async (programId: number, exercises: StartExercise[]) => {
     setIsStarting(true);
+    setStartError(null);
     try {
       await startWorkoutSession(programId, toCustomExercises(exercises));
       navigate('/workout/session');
@@ -55,12 +59,21 @@ export function useWorkoutStart(onLoaded?: (programs: StartProgram[]) => void) {
         navigate('/workout/session');
         return;
       }
-      alert("운동을 시작하는 중 오류가 발생했습니다.");
       console.error("Failed to start workout session:", error);
+      setStartError(describeError('운동 시작', error));
     } finally {
       setIsStarting(false);
     }
   };
 
-  return { programs, allWorkouts, isLoading, isStarting, startWorkout };
+  return {
+    programs,
+    allWorkouts,
+    isLoading,
+    loadError,
+    isStarting,
+    startError,
+    clearStartError: () => setStartError(null),
+    startWorkout,
+  };
 }

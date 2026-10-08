@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ExerciseFormModal, type ExerciseCatalog, type WorkoutResponse } from '@/features/exercises';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
+import { DismissibleError } from '@/shared/ui/ErrorBanner';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingState } from '@/shared/ui/Spinner';
 
@@ -16,6 +17,24 @@ export function ManageExercisesView({ catalog, onBack }: ManageExercisesViewProp
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<WorkoutResponse | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const isFormOpen = showAddModal || editingExercise !== null;
+
+  // 폼을 열고 닫을 때 이전 실패 메시지를 지운다
+  const openAddModal = () => {
+    catalog.clearError();
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (exercise: WorkoutResponse) => {
+    catalog.clearError();
+    setEditingExercise(exercise);
+  };
+
+  const closeForm = () => {
+    catalog.clearError();
+    setShowAddModal(false);
+    setEditingExercise(null);
+  };
 
   const handleAdd = async (name: string, bodyPartId: number) => {
     if (await catalog.addExercise(name, bodyPartId)) setShowAddModal(false);
@@ -44,13 +63,15 @@ export function ManageExercisesView({ catalog, onBack }: ManageExercisesViewProp
               <i className="ri-arrow-left-line mr-2"></i>
               프로그램 목록
             </Button>
-            <Button variant="brand" onClick={() => setShowAddModal(true)}>
+            <Button variant="brand" onClick={openAddModal}>
               <i className="ri-add-line mr-2"></i>
               운동 추가
             </Button>
           </div>
         }
       />
+
+      {catalog.error && !isFormOpen && <DismissibleError message={catalog.error} onDismiss={catalog.clearError} />}
 
       {isLoading ? (
         <LoadingState />
@@ -82,7 +103,7 @@ export function ManageExercisesView({ catalog, onBack }: ManageExercisesViewProp
                         <span className="font-medium text-gray-900 dark:text-white">{exercise.name}</span>
                         {exercise.editable ? (
                           <div className="flex gap-2">
-                            <Button variant="subtle" size="sm" onClick={() => setEditingExercise(exercise)}>
+                            <Button variant="subtle" size="sm" onClick={() => openEditModal(exercise)}>
                               <i className="ri-edit-line"></i>
                             </Button>
                             <Button variant="danger" size="sm" onClick={() => setDeletingId(exercise.id)}>
@@ -109,8 +130,9 @@ export function ManageExercisesView({ catalog, onBack }: ManageExercisesViewProp
           submitLabel="추가"
           bodyParts={bodyParts}
           namePlaceholder="예: 체스트플라이"
+          error={catalog.error}
           onSubmit={handleAdd}
-          onCancel={() => setShowAddModal(false)}
+          onCancel={closeForm}
         />
       )}
 
@@ -121,8 +143,9 @@ export function ManageExercisesView({ catalog, onBack }: ManageExercisesViewProp
           bodyParts={bodyParts}
           initialName={editingExercise.name}
           initialBodyPartId={editingExercise.bodyPartId}
+          error={catalog.error}
           onSubmit={handleEdit}
-          onCancel={() => setEditingExercise(null)}
+          onCancel={closeForm}
         />
       )}
 

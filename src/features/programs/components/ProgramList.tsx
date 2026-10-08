@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { ConfirmDialog } from '@/shared/ui/ConfirmDialog';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { DismissibleError } from '@/shared/ui/ErrorBanner';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { LoadingState } from '@/shared/ui/Spinner';
 import { ProgramCard } from './ProgramCard';
@@ -10,6 +11,8 @@ import type { ProgramResponse } from '../types';
 interface ProgramListProps {
   programs: ProgramResponse[];
   isLoading: boolean;
+  error: string | null;
+  onClearError: () => void;
   onCreate: () => void;
   onEdit: (program: ProgramResponse) => void;
   onDelete: (programId: number) => Promise<boolean>;
@@ -17,12 +20,14 @@ interface ProgramListProps {
   onManageExercises: () => void;
 }
 
-export function ProgramList({ programs, isLoading, onCreate, onEdit, onDelete, onStart, onManageExercises }: ProgramListProps) {
+export function ProgramList({ programs, isLoading, error, onClearError, onCreate, onEdit, onDelete, onStart, onManageExercises }: ProgramListProps) {
   const [deletingProgramId, setDeletingProgramId] = useState<number | null>(null);
 
   const confirmDelete = async () => {
     if (deletingProgramId === null) return;
-    if (await onDelete(deletingProgramId)) setDeletingProgramId(null);
+    // 실패해도 대화상자는 닫고 목록 위에 오류를 보여준다
+    await onDelete(deletingProgramId);
+    setDeletingProgramId(null);
   };
 
   return (
@@ -44,6 +49,8 @@ export function ProgramList({ programs, isLoading, onCreate, onEdit, onDelete, o
           </div>
         }
       />
+
+      {error && <DismissibleError message={error} onDismiss={onClearError} />}
 
       {isLoading ? (
         <LoadingState />

@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { Button } from '@/shared/ui/Button';
+import { ErrorBanner } from '@/shared/ui/ErrorBanner';
 import { Input } from '@/shared/ui/Input';
 import { Modal } from '@/shared/ui/Modal';
 
 interface BodyPartFormModalProps {
+  // 저장 실패·입력 오류 메시지
+  error?: string | null;
   onSubmit: (name: string) => void;
   onCancel: () => void;
 }
 
 // 운동 부위 추가 폼
-export function BodyPartFormModal({ onSubmit, onCancel }: BodyPartFormModalProps) {
+export function BodyPartFormModal({ error, onSubmit, onCancel }: BodyPartFormModalProps) {
   const [name, setName] = useState('');
 
   return (
@@ -21,6 +24,7 @@ export function BodyPartFormModal({ onSubmit, onCancel }: BodyPartFormModalProps
         onChange={(e) => setName(e.target.value)}
         placeholder="예: 전신"
       />
+      {error && <ErrorBanner className="mt-4">{error}</ErrorBanner>}
       <div className="flex gap-2 mt-4">
         <Button variant="subtle" onClick={onCancel}>
           취소

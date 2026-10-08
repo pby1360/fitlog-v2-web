@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ExercisePickerModal, type PendingSet, type WorkoutResponse } from '@/features/exercises';
 import { useReorder } from '@/shared/hooks/useReorder';
 import { Button } from '@/shared/ui/Button';
+import { DismissibleError } from '@/shared/ui/ErrorBanner';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { copyExercises, countSets, toStartExercise } from '../lib/startProgram';
 import type { StartExercise, StartProgram } from '../types';
@@ -10,6 +11,8 @@ interface PreStartEditorProps {
   program: StartProgram;
   allWorkouts: WorkoutResponse[];
   isStarting: boolean;
+  startError: string | null;
+  onClearStartError: () => void;
   onBack: () => void;
   onStart: (exercises: StartExercise[]) => void;
 }
@@ -21,7 +24,7 @@ const arrowClass = (disabled: boolean) => `p-1 rounded ${
 }`;
 
 // 운동 시작 전: 순서 변경·삭제·운동 추가
-export function PreStartEditor({ program, allWorkouts, isStarting, onBack, onStart }: PreStartEditorProps) {
+export function PreStartEditor({ program, allWorkouts, isStarting, startError, onClearStartError, onBack, onStart }: PreStartEditorProps) {
   const [exercises, setExercises] = useState<StartExercise[]>(() => copyExercises(program.exercises));
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const { draggedIndex, moveUp, moveDown, dragHandlers } = useReorder(exercises, setExercises);
@@ -54,6 +57,8 @@ export function PreStartEditor({ program, allWorkouts, isStarting, onBack, onSta
           </div>
         }
       />
+
+      {startError && <DismissibleError message={startError} onDismiss={onClearStartError} />}
 
       {/* 운동 목록 요약 */}
       <div className="bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5 rounded-xl p-4 mb-6">

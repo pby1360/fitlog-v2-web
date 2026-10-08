@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BodyPartFormModal, ExerciseFormModal, type ExerciseCatalog, type WorkoutResponse } from '@/features/exercises';
 import { Button } from '@/shared/ui/Button';
+import { DismissibleError } from '@/shared/ui/ErrorBanner';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useProgramDraft } from '../hooks/useProgramDraft';
 import { toSaveProgramRequest } from '../lib/programDraft';
@@ -15,12 +16,15 @@ interface ProgramEditorProps {
   // 수정할 프로그램. null 이면 새로 만든다
   program: ProgramResponse | null;
   catalog: ExerciseCatalog;
+  // 저장 실패 메시지
+  saveError: string | null;
+  onClearSaveError: () => void;
   onSave: (payload: SaveProgramRequest) => Promise<void>;
   onCancel: () => void;
 }
 
 // 프로그램 생성·수정 4단계 위저드
-export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEditorProps) {
+export function ProgramEditor({ program, catalog, saveError, onClearSaveError, onSave, onCancel }: ProgramEditorProps) {
   const isEdit = program !== null;
   const { bodyParts, workouts } = catalog;
   const draft = useProgramDraft(program);
@@ -30,13 +34,45 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
   // undefined: 닫힘, null: 부위 미지정으로 열림, number: 해당 부위를 선택해 열림
   const [addExerciseBodyPartId, setAddExerciseBodyPartId] = useState<number | null | undefined>(undefined);
   const [editingExercise, setEditingExercise] = useState<WorkoutResponse | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const isFormOpen = showAddBodyPartModal || addExerciseBodyPartId !== undefined || editingExercise !== null;
+  // 위저드 위에 보여줄 오류: 입력 확인 → 저장 실패 → 운동·부위 변경 실패 순. 모달이 열려 있으면 모달 안에 보여준다
+  const bannerError = isFormOpen ? null : formError ?? saveError ?? catalog.error;
+
+  const clearBannerError = () => {
+    setFormError(null);
+    onClearSaveError();
+    catalog.clearError();
+  };
+
+  // 모달을 열고 닫을 때 이전 실패 메시지를 지운다
+  const openForm = (open: () => void) => {
+    catalog.clearError();
+    setFormError(null);
+    open();
+  };
+
+  const closeForms = () => {
+    catalog.clearError();
+    setFormError(null);
+    setShowAddBodyPartModal(false);
+    setAddExerciseBodyPartId(undefined);
+    setEditingExercise(null);
+  };
 
   const getExerciseName = (exerciseId: number) => workouts.find(ex => ex.id === exerciseId)?.name || '';
   const getExerciseBodyPart = (exerciseId: number) => workouts.find(ex => ex.id === exerciseId)?.bodyPart || '';
 
   const handleAddBodyPart = async (name: string) => {
-    // 빈 이름·중복 이름은 무시한다
-    if (!name || bodyParts.some(bp => bp.name === name)) return;
+    if (!name) {
+      setFormError('부위 이름을 입력하세요.');
+      return;
+    }
+    if (bodyParts.some(bp => bp.name === name)) {
+      setFormError('이미 있는 부위 이름입니다.');
+      return;
+    }
+    setFormError(null);
     if (await catalog.addBodyPart(name)) setShowAddBodyPartModal(false);
   };
 
@@ -51,9 +87,10 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
 
   const handleSave = () => {
     if (!draft.name.trim() || draft.exercises.length === 0) {
-      alert('프로그램 이름과 최소 하나 이상의 운동을 포함해야 합니다.');
+      setFormError('프로그램 이름과 최소 하나 이상의 운동을 포함해야 합니다.');
       return;
     }
+    setFormError(null);
     onSave(toSaveProgramRequest(draft.name, draft.description, draft.exercises, workouts));
   };
 
@@ -74,6 +111,8 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
 
       <StepIndicator currentStep={currentStep} />
 
+      {bannerError && <DismissibleError message={bannerError} onDismiss={clearBannerError} />}
+
       <div className="p-6 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/8 rounded-2xl">
         {currentStep === 1 && <InfoStep draft={draft} onNext={() => setCurrentStep(2)} />}
 
@@ -81,7 +120,7 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
           <BodyPartStep
             draft={draft}
             bodyParts={bodyParts}
-            onAddBodyPart={() => setShowAddBodyPartModal(true)}
+            onAddBodyPart={() => openForm(() => setShowAddBodyPartModal(true))}
             onDeleteBodyPart={catalog.removeBodyPart}
             onPrev={() => setCurrentStep(1)}
             onNext={() => setCurrentStep(3)}
@@ -93,8 +132,8 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
             draft={draft}
             bodyParts={bodyParts}
             workouts={workouts}
-            onAddExercise={(bodyPartId) => setAddExerciseBodyPartId(bodyPartId ?? null)}
-            onEditExercise={setEditingExercise}
+            onAddExercise={(bodyPartId) => openForm(() => setAddExerciseBodyPartId(bodyPartId ?? null))}
+            onEditExercise={(exercise) => openForm(() => setEditingExercise(exercise))}
             onDeleteExercise={catalog.removeExercise}
             getExerciseName={getExerciseName}
             getExerciseBodyPart={getExerciseBodyPart}
@@ -116,7 +155,7 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
       </div>
 
       {showAddBodyPartModal && (
-        <BodyPartFormModal onSubmit={handleAddBodyPart} onCancel={() => setShowAddBodyPartModal(false)} />
+        <BodyPartFormModal error={formError ?? catalog.error} onSubmit={handleAddBodyPart} onCancel={closeForms} />
       )}
 
       {addExerciseBodyPartId !== undefined && (
@@ -126,8 +165,9 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
           bodyParts={bodyParts}
           initialBodyPartId={addExerciseBodyPartId ?? undefined}
           namePlaceholder="예: 체스트플라이"
+          error={catalog.error}
           onSubmit={handleAddExercise}
-          onCancel={() => setAddExerciseBodyPartId(undefined)}
+          onCancel={closeForms}
         />
       )}
 
@@ -138,8 +178,9 @@ export function ProgramEditor({ program, catalog, onSave, onCancel }: ProgramEdi
           bodyParts={bodyParts}
           initialName={editingExercise.name}
           initialBodyPartId={editingExercise.bodyPartId}
+          error={catalog.error}
           onSubmit={handleEditExercise}
-          onCancel={() => setEditingExercise(null)}
+          onCancel={closeForms}
         />
       )}
     </div>
