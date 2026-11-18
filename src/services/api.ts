@@ -703,7 +703,7 @@ export interface WorkoutLogPage {
 }
 
 export const getWorkoutLogs = async (page = 0, size = 10, startDate?: string, endDate?: string): Promise<WorkoutLogPage> => {
-    let url = `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc`;
+    let url = `${API_BASE_URL}/workout-sessions/logs?page=${page}&size=${size}&sort=startTime,desc&sort=id,desc`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
     const result = await fetchWithAuth(url);
