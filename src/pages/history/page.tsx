@@ -1,111 +1,140 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Button from '../../components/base/Button';
 import Card from '../../components/base/Card';
 import Header from '../../components/feature/Header';
 import { getWorkoutLogs, getWorkoutLog, type WorkoutLogResponse, type WorkoutLogPage } from '../../services/api';
-import { kstDateDaysAgo, monthRange } from '../../utils/date';
+import { kstDateDaysAgo, monthRange, toKstDateString } from '../../utils/date';
 
-// 한 달 기록을 한 번에 가져오기 위한 페이지 크기
 const CALENDAR_PAGE_SIZE = 200;
+const PERIOD_OPTIONS = [
+  { value: '1w', label: '1주일', days: 7 },
+  { value: '1m', label: '1개월', days: 30 },
+  { value: '3m', label: '3개월', days: 90 },
+  { value: '6m', label: '6개월', days: 180 },
+  { value: 'all', label: '전체', days: undefined },
+] as const;
 
 type WorkoutRecord = WorkoutLogResponse;
+type Period = typeof PERIOD_OPTIONS[number]['value'];
+type LoadResult<T> = { key: string; value: T | null };
+
+function listSearchParams(period: Period, page = 0) {
+  const params = new URLSearchParams();
+  if (period !== '1m') params.set('period', period);
+  if (page > 0) params.set('page', String(page));
+  return params.size ? '?' + params.toString() : '';
+}
+
+function calendarSearchParams(month: string, listSearch: string) {
+  const params = new URLSearchParams(listSearch);
+  params.set('view', 'calendar');
+  params.set('month', month);
+  return '?' + params.toString();
+}
 
 export default function HistoryPage() {
-  const [workoutRecords, setWorkoutRecords] = useState<WorkoutRecord[]>([]);
-  const [calendarRecords, setCalendarRecords] = useState<WorkoutRecord[]>([]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
-  const [totalDurationSeconds, setTotalDurationSeconds] = useState(0);
-  const [totalCompletedSets, setTotalCompletedSets] = useState(0);
-  const [averageCompletionRate, setAverageCompletionRate] = useState(0);
-  const [selectedRecord, setSelectedRecord] = useState<WorkoutRecord | null>(null);
-  const [view, setView] = useState<'list' | 'calendar' | 'detail'>('list');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [calendarError, setCalendarError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<'1w' | '1m' | '3m' | '6m' | 'all'>('1m');
+  const [listResult, setListResult] = useState<LoadResult<WorkoutLogPage>>();
+  const [monthResult, setMonthResult] = useState<LoadResult<WorkoutRecord[]>>();
+  const [detail, setDetail] = useState<WorkoutRecord>();
+  const [expandedDate, setExpandedDate] = useState<string>();
+  const dayDialog = useRef<HTMLDialogElement>(null);
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const PERIOD_OPTIONS: { value: '1w' | '1m' | '3m' | '6m' | 'all'; label: string; days?: number }[] = [
-    { value: '1w', label: '1주일', days: 7 },
-    { value: '1m', label: '1개월', days: 30 },
-    { value: '3m', label: '3개월', days: 90 },
-    { value: '6m', label: '6개월', days: 180 },
-    { value: 'all', label: '전체' },
-  ];
+  const now = new Date();
+  const today = toKstDateString(now);
+  const yesterday = kstDateDaysAgo(1, now);
+  const requestedMonth = searchParams.get('month') ?? '';
+  const monthKey = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(requestedMonth) ? requestedMonth : today.slice(0, 7);
+  const [year, month] = monthKey.split('-').map(Number);
+  const fromCalendar = searchParams.get('view') === 'calendar';
+  const view = id ? 'detail' : fromCalendar ? 'calendar' : 'list';
 
-  const getDateRange = (period: typeof selectedPeriod) => {
-    if (period === 'all') return {};
-    const days = PERIOD_OPTIONS.find(o => o.value === period)!.days!;
-    // 한국 날짜 기준 (서버도 KST 날짜 경계로 해석한다)
-    return { startDate: kstDateDaysAgo(days), endDate: kstDateDaysAgo(0) };
-  };
+  const period = PERIOD_OPTIONS.find(option => option.value === searchParams.get('period')) ?? PERIOD_OPTIONS[1];
+  const requestedPage = Number(searchParams.get('page'));
+  const page = Number.isSafeInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0;
+  const listSearch = listSearchParams(period.value, page);
+  const listPath = '/history' + listSearch;
+  const calendarSearch = calendarSearchParams(monthKey, listSearch);
+  const calendarPath = '/history' + calendarSearch;
+  const returnPath = fromCalendar ? calendarPath : listPath;
 
-  const fetchListPage = async (page: number, period = selectedPeriod) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { startDate, endDate } = getDateRange(period);
-      const result: WorkoutLogPage = await getWorkoutLogs(page, 10, startDate, endDate);
-      setWorkoutRecords(result.logs);
-      setCurrentPage(result.currentPage);
-      setTotalPages(result.totalPages);
-      setTotalElements(result.totalElements);
-      setTotalDurationSeconds(result.totalDurationSeconds);
-      setTotalCompletedSets(result.totalCompletedSets);
-      setAverageCompletionRate(result.averageCompletionRate);
-    } catch {
-      setError('운동 기록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 캘린더는 보고 있는 달의 기록만 기간 조회한다 (오래된 달도 표시되도록)
-  const fetchCalendarRecords = async (month: Date = currentDate) => {
-    setCalendarError(null);
-    try {
-      const { startDate, endDate } = monthRange(month.getFullYear(), month.getMonth() + 1);
-      const result: WorkoutLogPage = await getWorkoutLogs(0, CALENDAR_PAGE_SIZE, startDate, endDate);
-      setCalendarRecords(result.logs);
-    } catch {
-      // 실패를 빈 달(운동 안 함)과 구분해 보여준다
-      setCalendarError('이 달의 운동 기록을 불러오지 못했습니다.');
-    }
-  };
+  const list = listResult?.key === listSearch ? listResult.value : undefined;
+  const calendarRecords = monthResult?.key === monthKey ? monthResult.value : undefined;
+  const selectedRecord = detail?.id === Number(id) ? detail : undefined;
 
   useEffect(() => {
-    fetchListPage(0, selectedPeriod);
-  }, [selectedPeriod]);
+    if (view !== 'list' || list !== undefined) return;
+    let active = true;
 
-  // URL 파라미터에 따라 상세 화면 표시
-  useEffect(() => {
-    if (!id) {
-      setSelectedRecord(null);
-      setView('list');
-      return;
-    }
-
-    const numericId = Number(id);
-    const fetchDetail = async () => {
-      setLoading(true);
-      setError(null);
+    async function loadList() {
+      // Strict Mode가 즉시 정리하는 초기 effect는 요청을 보내지 않는다.
+      await Promise.resolve();
+      if (!active) return;
+      const now = new Date();
+      const start = period.days === undefined ? undefined : kstDateDaysAgo(period.days, now);
+      const end = period.days === undefined ? undefined : toKstDateString(now);
       try {
-        const log = await getWorkoutLog(numericId);
-        setSelectedRecord(log);
-        setView('detail');
+        const value = await getWorkoutLogs(page, 10, start, end);
+        if (active) setListResult({ key: listSearch, value });
       } catch {
-        navigate('/history');
-      } finally {
-        setLoading(false);
+        if (active) setListResult({ key: listSearch, value: null });
       }
-    };
-    fetchDetail();
-  }, [id, navigate]);
+    }
+
+    void loadList();
+    return () => { active = false; };
+  }, [view, list, listSearch, page, period.days]);
+
+  useEffect(() => {
+    if (view !== 'calendar' || calendarRecords !== undefined) return;
+    let active = true;
+
+    async function loadMonth() {
+      await Promise.resolve();
+      if (!active) return;
+      const { startDate, endDate } = monthRange(year, month);
+      try {
+        const first = await getWorkoutLogs(0, CALENDAR_PAGE_SIZE, startDate, endDate);
+        if (!active) return;
+        const records = new Map(first.logs.map(log => [log.id, log]));
+        // 최초 응답의 페이지 수로 조회 범위를 제한한다.
+        for (let next = 1; next < first.totalPages; next++) {
+          const result = await getWorkoutLogs(next, CALENDAR_PAGE_SIZE, startDate, endDate);
+          if (!active) return;
+          for (const log of result.logs) records.set(log.id, log);
+          if (!result.hasNext) break;
+        }
+        setMonthResult({ key: monthKey, value: [...records.values()] });
+      } catch {
+        if (active) setMonthResult({ key: monthKey, value: null });
+      }
+    }
+
+    void loadMonth();
+    return () => { active = false; };
+  }, [view, calendarRecords, monthKey, year, month]);
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+
+    async function loadDetail() {
+      await Promise.resolve();
+      if (!active) return;
+      try {
+        const log = await getWorkoutLog(Number(id));
+        if (active) setDetail(log);
+      } catch {
+        if (active) navigate(returnPath, { replace: true });
+      }
+    }
+
+    void loadDetail();
+    return () => { active = false; };
+  }, [id, navigate, returnPath]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -118,22 +147,14 @@ export default function HistoryPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return '오늘';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return '어제';
-    } else {
-      return date.toLocaleDateString('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        weekday: 'short'
-      });
-    }
+    if (dateString === today) return '오늘';
+    if (dateString === yesterday) return '어제';
+    return new Date(dateString).toLocaleDateString('ko-KR', {
+      timeZone: 'UTC',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'short',
+    });
   };
 
   const getCompletionRate = (record: WorkoutRecord) => {
@@ -142,40 +163,15 @@ export default function HistoryPage() {
   };
 
   const viewDetail = (record: WorkoutRecord) => {
-    navigate(`/history/${record.id}`);
+    navigate('/history/' + record.id + (fromCalendar ? calendarSearch : listSearch));
   };
 
-  const backToList = () => {
-    navigate('/history');
+  const navigateMonth = (offset: number) => {
+    const next = new Date(Date.UTC(year, month - 1 + offset, 1));
+    navigate('/history' + calendarSearchParams(next.toISOString().slice(0, 7), listSearch), { replace: true });
   };
 
-  const backToCalendar = () => {
-    setView('calendar');
-    navigate('/history');
-  };
-
-  // 캘린더 관련 함수들
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const getWorkoutForDate = (date: string) => {
-    return calendarRecords.filter(record => record.date === date);
-  };
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    // 일자를 1일로 고정해 31일에서 이동할 때 짧은 달을 건너뛰지 않게 한다
-    const offset = direction === 'prev' ? -1 : 1;
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
-    setCurrentDate(newDate);
-    fetchCalendarRecords(newDate);
-  };
-
-  if (loading && view !== 'detail') {
+  if ((view === 'list' && list === undefined) || (view === 'detail' && !selectedRecord)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
@@ -186,14 +182,14 @@ export default function HistoryPage() {
     );
   }
 
-  if (error && view !== 'detail') {
+  if (view === 'list' && list === null) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-6">
           <Card className="p-8 text-center bg-red-500/10 border border-red-500/20">
-            <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>다시 시도</Button>
+            <p className="text-red-400 mb-4">운동 기록을 불러오는데 실패했습니다.</p>
+            <Button onClick={() => setListResult(undefined)}>다시 시도</Button>
           </Card>
         </div>
       </div>
@@ -202,20 +198,16 @@ export default function HistoryPage() {
 
   // 캘린더 뷰
   if (view === 'calendar') {
-    const daysInMonth = getDaysInMonth(currentDate);
-    const firstDay = getFirstDayOfMonth(currentDate);
-    const monthYear = currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
-
-    const calendarDays = [];
-
-    // 빈 칸 추가 (이전 달 마지막 날들)
-    for (let i = 0; i < firstDay; i++) {
-      calendarDays.push(null);
-    }
-
-    // 현재 달의 날짜들 추가
-    for (let day = 1; day <= daysInMonth; day++) {
-      calendarDays.push(day);
+    const firstDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+    const { endDate } = monthRange(year, month);
+    const daysInMonth = Number(endDate.slice(-2));
+    const calendarDays = Array.from({ length: firstDay + daysInMonth },
+      (_, index) => index < firstDay ? null : index - firstDay + 1);
+    const recordsByDate = new Map<string, WorkoutRecord[]>();
+    for (const record of calendarRecords ?? []) {
+      const records = recordsByDate.get(record.date);
+      if (records) records.push(record);
+      else recordsByDate.set(record.date, [record]);
     }
 
     return (
@@ -239,10 +231,7 @@ export default function HistoryPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setView('list');
-                    navigate('/history');
-                  }}
+                  onClick={() => navigate(listPath)}
                   className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
                 >
                   <i className="ri-list-unordered mr-2"></i>
@@ -251,7 +240,7 @@ export default function HistoryPage() {
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
+                  aria-pressed="true"
                   className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   <i className="ri-calendar-line mr-2"></i>
@@ -265,22 +254,29 @@ export default function HistoryPage() {
           <Card className="p-4 sm:p-6 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/5">
             {/* 캘린더 헤더 */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{monthYear}</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{year}년 {month}월</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
+                <Button variant="outline" size="sm" aria-label="이전 달" onClick={() => navigateMonth(-1)} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-arrow-left-s-line"></i>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth('next')} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
+                <Button variant="outline" size="sm" aria-label="다음 달" onClick={() => navigateMonth(1)} className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-arrow-right-s-line"></i>
                 </Button>
               </div>
             </div>
 
-            {calendarError && (
+            {calendarRecords === null && (
               <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">
-                <span>{calendarError}</span>
-                <button onClick={() => fetchCalendarRecords()} className="font-medium underline">다시 시도</button>
+                <span>이 달의 운동 기록을 불러오지 못했습니다.</span>
+                <button onClick={() => setMonthResult(undefined)} className="font-medium underline">다시 시도</button>
               </div>
+            )}
+
+            {calendarRecords === undefined && (
+              <p role="status" className="mb-4 text-sm text-gray-500">이 달의 운동 기록을 불러오는 중...</p>
+            )}
+            {calendarRecords?.length === 0 && (
+              <p className="mb-4 text-sm text-gray-500">이 달의 운동 기록이 없습니다.</p>
             )}
 
             {/* 요일 헤더 */}
@@ -298,26 +294,26 @@ export default function HistoryPage() {
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((day, index) => {
                 if (day === null) {
-                  return <div key={index} className="p-2 h-20 sm:h-24"></div>;
+                  return <div key={'empty-' + index} className="p-2 min-h-20 sm:min-h-24"></div>;
                 }
 
-                const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const workoutsForDay = getWorkoutForDate(dateString);
-                const isToday = new Date().toDateString() === new Date(dateString).toDateString();
+                const dateString = monthKey + '-' + String(day).padStart(2, '0');
+                const workoutsForDay = recordsByDate.get(dateString) ?? [];
+                const isToday = dateString === today;
 
                 return (
                   <div
                     key={day}
-                    className={`p-1 sm:p-2 h-20 sm:h-24 border rounded-lg ${
+                    className={`p-1 sm:p-2 min-h-20 sm:min-h-24 border rounded-lg ${
                       isToday ? 'bg-blue-50 dark:bg-indigo-500/10 border-blue-300 dark:border-indigo-500/30' : 'bg-gray-50 dark:bg-white/[0.02] border-gray-100 dark:border-white/5'
                     }`}
                   >
-                    <div className={`text-xs sm:text-sm font-medium mb-1 ${
+                    <div aria-current={isToday ? 'date' : undefined} className={`text-xs sm:text-sm font-medium mb-1 ${
                       isToday ? 'text-blue-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-400'
                     }`}>
                       {day}
                     </div>
-                    <div className="space-y-1">
+                    <div className="grid gap-1">
                       {workoutsForDay.slice(0, 2).map((workout) => (
                         <button
                           key={workout.id}
@@ -328,9 +324,18 @@ export default function HistoryPage() {
                         </button>
                       ))}
                       {workoutsForDay.length > 2 && (
-                        <div className="text-xs text-gray-500 px-1">
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-label={day + '일 +' + (workoutsForDay.length - 2) + '개 더'}
+                          onClick={() => {
+                            setExpandedDate(dateString);
+                            dayDialog.current?.showModal();
+                          }}
+                          className="w-full truncate px-1 text-left text-xs text-indigo-600 underline dark:text-indigo-300"
+                        >
                           +{workoutsForDay.length - 2}개 더
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -338,13 +343,44 @@ export default function HistoryPage() {
               })}
             </div>
           </Card>
+
+          <dialog
+            ref={dayDialog}
+            onClose={() => setExpandedDate(undefined)}
+            aria-labelledby="calendar-day-title"
+            className="m-auto max-h-[80vh] w-11/12 max-w-md overflow-y-auto rounded-xl bg-white p-4 text-gray-900 backdrop:bg-black/50 dark:bg-[#111] dark:text-white"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 id="calendar-day-title" className="font-semibold">
+                {expandedDate ? formatDate(expandedDate) + ' 운동 기록' : '운동 기록'}
+              </h3>
+              <Button variant="outline" size="sm" onClick={() => dayDialog.current?.close()}>닫기</Button>
+            </div>
+            {expandedDate && (
+              <ul className="space-y-1">
+                {recordsByDate.get(expandedDate)?.map(record => (
+                  <li key={record.id}>
+                    <button type="button" onClick={() => { dayDialog.current?.close(); viewDetail(record); }}
+                      className="w-full break-words rounded bg-emerald-500/10 px-3 py-2 text-left text-sm text-emerald-700 dark:text-emerald-300">
+                      <span className="mr-2 text-xs">{record.startTime}</span>
+                      {record.programName}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dialog>
         </div>
       </div>
     );
   }
 
   // 운동 기록 목록 화면
-  if (view === 'list') {
+  if (view === 'list' && list) {
+    const {
+      logs: workoutRecords, currentPage, totalPages, totalElements,
+      totalDurationSeconds, totalCompletedSets, averageCompletionRate,
+    } = list;
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <Header />
@@ -366,7 +402,7 @@ export default function HistoryPage() {
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => setView('list')}
+                  aria-pressed="true"
                   className="whitespace-nowrap bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 border-0"
                 >
                   <i className="ri-list-unordered mr-2"></i>
@@ -375,7 +411,7 @@ export default function HistoryPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setView('calendar'); fetchCalendarRecords(); }}
+                  onClick={() => navigate(calendarPath)}
                   className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
                 >
                   <i className="ri-calendar-line mr-2"></i>
@@ -392,9 +428,9 @@ export default function HistoryPage() {
               {PERIOD_OPTIONS.map(option => (
                 <button
                   key={option.value}
-                  onClick={() => setSelectedPeriod(option.value)}
+                  onClick={() => navigate('/history' + listSearchParams(option.value))}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap border ${
-                    selectedPeriod === option.value
+                    period.value === option.value
                       ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30'
                       : 'bg-gray-100 dark:bg-white/5 text-gray-500 border-gray-200 dark:border-white/8 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'
                   }`}
@@ -542,7 +578,7 @@ export default function HistoryPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetchListPage(currentPage - 1)}
+                onClick={() => navigate('/history' + listSearchParams(period.value, currentPage - 1))}
                 disabled={currentPage === 0}
                 className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
               >
@@ -554,7 +590,7 @@ export default function HistoryPage() {
                 {Array.from({ length: totalPages }, (_, i) => i).map(page => (
                   <button
                     key={page}
-                    onClick={() => fetchListPage(page)}
+                    onClick={() => navigate('/history' + listSearchParams(period.value, page))}
                     className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
                       page === currentPage
                         ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white'
@@ -569,7 +605,7 @@ export default function HistoryPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => fetchListPage(currentPage + 1)}
+                onClick={() => navigate('/history' + listSearchParams(period.value, currentPage + 1))}
                 disabled={currentPage >= totalPages - 1}
                 className="whitespace-nowrap border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
               >
@@ -607,11 +643,11 @@ export default function HistoryPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={backToList} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
+                <Button variant="outline" onClick={() => navigate(listPath)} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-list-unordered mr-2"></i>
                   목록으로
                 </Button>
-                <Button variant="outline" onClick={backToCalendar} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
+                <Button variant="outline" onClick={() => navigate(calendarPath)} className="whitespace-nowrap text-sm border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
                   <i className="ri-calendar-line mr-2"></i>
                   캘린더로
                 </Button>

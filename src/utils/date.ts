@@ -32,7 +32,7 @@ export const kstDateDaysAgo = (days: number, now: Date = new Date()): string =>
 
 /** 해당 월의 첫날과 마지막 날 (YYYY-MM-DD). month 는 1~12 */
 export const monthRange = (year: number, month: number): { startDate: string; endDate: string } => {
-  const lastDay = new Date(year, month, 0).getDate();
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const mm = String(month).padStart(2, '0');
   return { startDate: `${year}-${mm}-01`, endDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}` };
 };
