@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-const apiOrigin = 'http://127.0.0.1:8080';
-const logsPath = '/api/workout-sessions/logs';
+import { historyPage as logPage, logsPath, mockFitLogApi } from './support/fitlog-api';
 
 function record(id: number, date: string, name: string) {
   return { id, workoutProgramName: name, startTime: date + 'T19:00:00+09:00',
@@ -9,10 +7,6 @@ function record(id: number, date: string, name: string) {
 }
 
 type RecordSummary = ReturnType<typeof record>;
-
-function logPage(content: RecordSummary[], currentPage = 0, totalPages = 1) {
-  return { content, currentPage, totalPages, first: currentPage === 0, last: currentPage + 1 >= totalPages };
-}
 
 function holdResponse() {
   let release!: () => void;
@@ -30,10 +24,7 @@ async function mockHistory(
   respond: (url: URL) => { status?: number; json: unknown } | Promise<{ status?: number; json: unknown }>,
   details: RecordSummary[] = [],
 ) {
-  await page.route('**/*', async route => {
-    const url = new URL(route.request().url());
-    if (url.origin === test.info().project.use.baseURL) return route.continue();
-    if (url.origin !== apiOrigin) return route.abort();
+  await mockFitLogApi(page, async (route, url) => {
     if (url.pathname === logsPath) return route.fulfill(await respond(url));
 
     const summary = details.find(item => url.pathname === logsPath + '/' + item.id);
