@@ -25,7 +25,7 @@
   VITE_API_BASE_URL=http://localhost:8080 npm run build
   ```
 
-- `npm run build`는 타입 검사 후 Vite 결과를 `out/`에 만든다. [워크플로](.github/workflows/deploy.yml)는 `main`·`dev` 대상 PR에서 설치·린트·타입 검사를 수행하고, 번들 빌드는 배포 잡에서 실행한다. 로컬에서 위 네 명령을 모두 확인한다.
+- `npm run build`는 타입 검사 후 Vite 결과를 `out/`에 만든다. [워크플로](.github/workflows/deploy.yml)는 `main`·`dev` 대상 PR에서 설치·린트·타입 검사를 수행한다. 기능·빌드·테스트 변경 또는 배포 검토 대상 변경에서는 로컬 API 주소로 번들 빌드 및 Playwright도 검사한다. 로컬에서 위 네 명령을 확인한다.
 - Chromium이 없는 환경은 `npx playwright install chromium`으로 준비한다. UI 또는 동작 수정은 `npm test`로 로컬 Playwright 시나리오를 실행한다. 테스트는 로컬 화면을 시작하고 API 응답을 가로채므로 운영 서비스에 접속할 필요가 없다. 추가 수동 검사에는 아래 명령을 사용하고 확인한 경로와 흐름을 기록한다.
 
   ```sh
@@ -38,6 +38,6 @@
 
 - 원격 `main`을 기준으로 저장소별 작업 브랜치를 사용한다. 기존 작업과 변경을 보존한다. 여러 저장소를 수정하는 요청에서는 검증과 Draft PR을 저장소마다 관리하고 의존하는 PR을 서로 연결한다.
 - 코드 변경은 [`$fitlog-loop`](.agents/skills/fitlog-loop/SKILL.md)로 진행한다. 저장소 루트에서 호출해 해당 저장소의 지침과 검증 명령을 사용한다.
-- 자체 검토 후 요청에 포함된 Draft PR을 만든다. 본문에 백로그 또는 Issue, 관련 PRD·Tech Spec, 변경 요약, 검증 명령·결과, 남은 항목을 기록한다. 배포 잡을 수동 실행하지 않는다.
+- 자체 검토 후 요청에 포함된 Draft PR을 만든다. 본문에 백로그 또는 Issue, 관련 PRD·Tech Spec, 변경 요약, 검증 명령·결과, 남은 항목을 기록한다. Draft PR의 GitHub Actions 결과를 확인해 기록한다. 기능 변경·버그 수정의 커밋과 병합 메시지에 `[skip ci]` 등 CI 생략 문구를 추가하지 않는다.
 - 코드 PR은 사용자 승인 후 수동 병합한다. 구현 동기화만 담긴 Docs PR은 승인된 병합 커밋이 지정한 문서 SHA로 검증한 뒤 자동 병합할 수 있다. 요구사항, 보안 정책, 제품 범위와 아키텍처 결정은 별도 승인을 받는다. [자동 병합 기준](https://github.com/pby1360/fitlog-v2-docs/blob/main/operations/DOCS_SYNC.md)
-- `main` 직접 수정과 푸시를 금지한다.
+- `main` 직접 수정과 푸시를 금지한다. 운영 배포는 사용자 승인 후 `main`에 병합된 배포 대상 변경에서 GitHub Actions가 수행한다. 에이전트는 운영 배포나 `workflow_dispatch`를 직접 실행하지 않는다. [배포 정책](https://github.com/pby1360/fitlog-v2-docs/blob/main/operations/DEPLOYMENT.md)
